@@ -30,9 +30,9 @@ UI windows for FFXI
 
 Here's some Syntax:
 
-  /ASCII-Joy help      Displays this help information.
-  /ASCII-Joy save      Saves the positions of the windows after you move them.
-  /ASCII-Joy party     Toggles the Party Window on and off.
+  	/ASCII-Joy help      Displays this help information.
+  	/ASCII-Joy save      Saves the positions of the windows after you move them.
+ 	/ASCII-Joy party     Toggles the Party Window on and off.
 	/ASCII-Joy solo      Toggles seeing yourself in Party Window while solo.
 	/ASCII-Joy player    Toggles Player Window of your own HP Bar, TP, Mana, Pet info. (if you have one)
 	/ASCII-Joy zilda     Toggles Health bar from ASCII to Hearts from "The Myth of Zilda(tm)"!
