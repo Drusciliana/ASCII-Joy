@@ -1,5 +1,5 @@
 # ASCII-Joy
-UI windows for FFXI
+UI windows for FFXI-Ashita4
 
 ****** Credit and Thanks goes out to:  
 ******  Atom0s for his guidance and use of his various addons as examples and inspiration...  
@@ -59,7 +59,7 @@ Here's some Syntax:
 		- You may still be considered in the party by the game if everyone leaves and you don't, so may still see it. Weird game.
 		- The Zone Name will still remain.
 
-    player - Do you want to see your own Health, TP, Mana, and Pet Info? (if should you have one)
+    player - Do you want to see your own Health, TP, Mana, and Pet Info? (if you have one)
 
     zilda - See some hearts from some other game to represent your health. (Thanks to Solentus for this idea.)
 
