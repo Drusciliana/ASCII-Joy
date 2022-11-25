@@ -1,9 +1,9 @@
 # ASCII-Joy
 UI windows for FFXI
 
-****** Credit and Thanks goes out to: 
-****** Atom0s for his guidance and use of his various addons as examples and inspiration...
-****** Vicrelant for the use of the monster data tables in his addon.
+****** Credit and Thanks goes out to:  
+******  Atom0s for his guidance and use of his various addons as examples and inspiration...
+******  Vicrelant for the use of the monster data tables in his addon.
 
 * OVERVIEW *
     Relive the glory days before there were graphics, when MUDs were still cool, all while having a somewhat functional UI!
