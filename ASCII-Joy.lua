@@ -107,6 +107,7 @@ local HeartContainer =
 };
 
 local jobs = {
+	[0]  = '   ',
 	[1]  = 'WAR',
 	[2]  = 'MNK',
 	[3]  = 'WHM',
@@ -605,7 +606,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 				    TJob = 'NPC';
 			    else	
 					MJob = jobs[party:GetMemberMainJob(x)];
-	                if (party:GetMemberSubJobLevel(x) ~= nil and party:GetMemberSubJobLevel(x) > 0) then
+	                if (party:GetMemberSubJobLevel(x) ~= nil and party:GetMemberSubJobLevel(x) > 0 and party:GetMemberSubJobLevel(x) < 23) then
 	   	                SJob = '/'..jobs[party:GetMemberSubJob(x)];
 	                end
 	                TJob = MJob..SJob;
@@ -1052,7 +1053,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 	        end
 
 	        if (HPValue <= 0) then
-	            sResult = '                  |cffff0000|YOU ARE DEAD!                   |r';
+	            sResult = '                   |cffff0000|YOU ARE DEAD!                    |r';
 	        else
    	            sResult = string.gsub(sResult,'_',HPColor .. '#|c00000000|',HPCheck);
 	        end
