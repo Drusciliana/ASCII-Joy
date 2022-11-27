@@ -501,6 +501,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
         local fontsize = ((partyfontsize * 2) - 1);
 		local elsewhere = true;
         for x = 0, 5 do  -- Need to Get these again because of the X loop.
+		    elsewhere = true;
 	        if (party:GetMemberIsActive(x) == 0) then
 	            f[x]:SetVisible(false);
 	            g[x]:SetVisible(false);
@@ -538,7 +539,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                 else
                     local ID = party:GetMemberTargetIndex(x);
 		            local TargetID = target:GetTargetIndex(0);
-                    if (ID == TargetID) then
+                    if (ID == TargetID and elsewhere == false) then
                         NameColor = '|cff7f2be2|';
                     else
                         NameColor = '|cff00ffff|';
@@ -666,7 +667,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                     g[x]:SetVisible(true);
 	                e:SetVisible(true);
 
-        	        if (HPValue <= 33) then
+        	        if (HPValue <= 33 and elsewhere == false) then
             	        if (tick >= 15) then
                             f[x]:GetBackground():SetColor(0x5fff0000);
                         else
