@@ -56,6 +56,6 @@ Here's some Syntax:
 ***
 *** Thank you for taking the time to try this addon. Hope you loot lots of stuffs with it.
 ***
-*** --- Drusciliana
+*** --- Drusciliana   (Discord name is just plain old D. (with the period), #2154 if that helps.)
 ***   
 
