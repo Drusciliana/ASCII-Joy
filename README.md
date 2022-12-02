@@ -41,7 +41,7 @@ Here's some Syntax:
         /ASCII-Joy back      Toggles Window Backgrounds. Rotates through (off / light / dark).
         /ASCII-Joy font      Toggles Window fonts between Consolas and Courier New.
         /ASCII-Joy size      Toggles through 3 different sizes fonts (10, 12, 14).
-        /ASCII-Joy offset #  Pixel-shifts the line-spacing (+/-)# pixels (Use if spaces between lines looks funny).
+        /ASCII-Joy offset #  Pixel-shifts the line-spacing (+/-)# pixels (Use if spaces between lines look funny).
         /ASCII-Joy party     Toggles the Party Window on and off.
         /ASCII-Joy solo      Toggles seeing yourself in Party Window while solo (Zone Name remains).
         /ASCII-Joy player    Toggles Player Window of your own HP Bar, TP, Mana, Pet info. (if you have one)
