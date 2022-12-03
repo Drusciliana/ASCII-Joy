@@ -46,11 +46,12 @@ T{
     party = 	true, 		
     solo = 		false, 		
     monster = 	true, 		
-    moninfo = 	true, 
+    moninfo = 	false, 
     monabov =   true,
 	monsbab = 	false,		
     playwin =   true,
     zilda =	    false,
+	cast =      true,
 	offset =    0
 	},
     partyfont = T{
@@ -113,18 +114,18 @@ T{
     },
 };
 -- Stuff to stop the for loop in finding mobs. Put it out here so it doesn't get overwritten every render call when the loop stops.
-local MobStr = ''; -- **
-local MobName = ''; -- **
-local MobAggro = ''; -- **
-local MobJob = '   '; -- Placeholder -- **
-local MobWeak = '             Monster Info unavailable'; -- **
-local LastMob = 0; -- ** -- NEW VARIABLES FOR THIS CHECKER
-local MobLvl = 0; -- ** -- NEW VARIABLES FOR THIS CHECKER
+local MobStr = ''; 
+local MobName = ''; 
+local MobAggro = '';
+local MobJob = '   '; -- Placeholder -- 
+local MobWeak = '             Monster Info unavailable'; 
+local LastMob = 0;
+local MobLvl = 0; 
 local MobDefEva ='(   ????   )';
 local MobType = '     ???     ';
 local MobLvlStr = '???';
-local CheckLock = true; -- **
-local GotPacket = true; -- ** Latch so we don't flood server with packets.
+local CheckLock = true; 
+local GotPacket = true; -- Latch so we don't flood server with packets.
 local checker = T{ ---- From Atom0s' checker addon.
     conditions = T{
         [0xAA] = '+EVA, +DEF',
@@ -150,6 +151,7 @@ local checker = T{ ---- From Atom0s' checker addon.
 };
 -------------------------------------------------------------------
 local tick = 0;
+local Progress = 0; -- For Cast Bar. Can't find variable to show if we are casting or interrupted or not. Maybe missing something.
 local LastZone = 9999; -- To remember when we are zoning.
 local mb_data = {};
 local arraySize = 0;
@@ -157,16 +159,16 @@ local HeartNum = {};
 local HeartContainer = 
 	--Lame attempt at an array (only way I could get new primitive library to work. PrimitiveManager handled textures differently it seems).
 {
-	[1] = { [1] = {}, [2] = {}, [3] = {}, [4] = {}, [5] = {} },
-	[2] = { [1] = {}, [2] = {}, [3] = {}, [4] = {}, [5] = {} },
-	[3] = { [1] = {}, [2] = {}, [3] = {}, [4] = {}, [5] = {} },
-	[4] = { [1] = {}, [2] = {}, [3] = {}, [4] = {}, [5] = {} },
-	[5] = { [1] = {}, [2] = {}, [3] = {}, [4] = {}, [5] = {} },
-	[6] = { [1] = {}, [2] = {}, [3] = {}, [4] = {}, [5] = {} },
-	[7] = { [1] = {}, [2] = {}, [3] = {}, [4] = {}, [5] = {} },
-	[8] = { [1] = {}, [2] = {}, [3] = {}, [4] = {}, [5] = {} },
-	[9] = { [1] = {}, [2] = {}, [3] = {}, [4] = {}, [5] = {} },
-	[10]= { [1] = {}, [2] = {}, [3] = {}, [4] = {}, [5] = {} },
+    [1] = { [1] = {}, [2] = {}, [3] = {}, [4] = {}, [5] = {} },
+    [2] = { [1] = {}, [2] = {}, [3] = {}, [4] = {}, [5] = {} },
+    [3] = { [1] = {}, [2] = {}, [3] = {}, [4] = {}, [5] = {} },
+    [4] = { [1] = {}, [2] = {}, [3] = {}, [4] = {}, [5] = {} },
+    [5] = { [1] = {}, [2] = {}, [3] = {}, [4] = {}, [5] = {} },
+    [6] = { [1] = {}, [2] = {}, [3] = {}, [4] = {}, [5] = {} },
+    [7] = { [1] = {}, [2] = {}, [3] = {}, [4] = {}, [5] = {} },
+    [8] = { [1] = {}, [2] = {}, [3] = {}, [4] = {}, [5] = {} },
+    [9] = { [1] = {}, [2] = {}, [3] = {}, [4] = {}, [5] = {} },
+    [10]= { [1] = {}, [2] = {}, [3] = {}, [4] = {}, [5] = {} },
     [11]= { [1] = {}, [2] = {}, [3] = {}, [4] = {}, [5] = {} },
     [12]= { [1] = {}, [2] = {}, [3] = {}, [4] = {}, [5] = {} }
 };
@@ -198,21 +200,21 @@ local jobs = {
 };
 
 local ascii = T{
-	font_c = nil,
-	font_e = nil,
-	font_l = nil,
-	font_m = nil,
-	font_n = nil,
-	font_o = nil,
-	font_p = nil,
-	font_q = nil,
-	font_r = nil,
-	font_s = nil,
-	font_t = nil,
-	font_u = nil,
+    font_c = nil,
+    font_e = nil,
+    font_l = nil,
+    font_m = nil,
+    font_n = nil,
+    font_o = nil,
+    font_p = nil,
+    font_q = nil,
+    font_r = nil,
+    font_s = nil,
+    font_t = nil,
+    font_u = nil,
     font_f = T{ },	
-	font_g = T{ },
-	font_h = T{ },
+    font_g = T{ },
+    font_h = T{ },
 	-------
     settings = settings.load(default_settings)
 }
@@ -524,7 +526,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
     if (tick >= 30) then
        	tick = 0;
     end
-	if (tick == 0 or tick == 10 or tick == 20) then
+	if (tick == 0 or tick == 15) then
 	    CheckLock = false;
     end
 				--** Changing zones? Pull a new data file
@@ -545,26 +547,29 @@ ashita.events.register('d3d_present', 'present_cb', function ()
     end
 
 -------- Cast Bar
-    local CastBar = AshitaCore:GetMemoryManager():GetCastBar();
-	local CastPer = 100 * CastBar:GetPercent();
-	local CastType = CastBar:GetCastType();
-	                    --      |123456789012345678901234567890
-	local CastStr = '||c00000000|_____________________________|r|'; -- It disappears when it's filled, so only show 29 spaces or it will look like a blank one is always there.
-	local CastChk = math.floor(CastPer / (100/30)); -- DENOMINATOR OF FRACTION IS HOW MANY SQUARES WE USE FOR BAR!!!!
-    local CastColor = '|cffff1493|';
+    if (ascii.settings.options.cast == true) then
+        local CastBar = AshitaCore:GetMemoryManager():GetCastBar();
+	    local CastPer = 100 * CastBar:GetPercent();
+	    local CastType = CastBar:GetCastType();
+	                        --      |123456789012345678901234567890
+	    local CastStr = '||c00000000|_____________________________|r|'; -- It disappears when it's filled, so only show 29 spaces or it will look like a blank one is always there.
+	    local CastChk = math.floor(CastPer / (100/30)); -- DENOMINATOR OF FRACTION IS HOW MANY SQUARES WE USE FOR BAR!!!!
+        local CastColor = '|cffff1493|';
+    	
+	    if (CastType ~= 0) then
+		    CastColor = '|cffffffff|';
+	    end
 
-	if (CastType ~= 0) then
-		CastColor = '|cffffffff|';
-	end
-	
-	CastStr = string.gsub(CastStr,'_',CastColor..'@|c00000000|',CastChk);
+	    CastStr = string.gsub(CastStr,'_',CastColor..'@|c00000000|',CastChk);
 		
-	if (CastPer < 100) then
-	    ascii.font_c.visible = true;
-	else
-		ascii.font_c.visible = false;
-	end
-	ascii.font_c.text = CastStr;
+	    if (CastPer < 100 and Progress ~= CastPer) then  -- VVV
+		    Progress = CastPer; -- Only way to see if the Cast Bar is actually moving, that I can think of.
+	        ascii.font_c.visible = true;
+	    else
+		    ascii.font_c.visible = false;
+        end
+            ascii.font_c.text = CastStr;
+    end
 -------- END Cast Bar
 
 -------- Party Window
@@ -882,7 +887,10 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 		                    MobWeak = string.gsub(MobWeak,'Light','|cffeedaf9|LIG');
 		                    MobWeak = string.gsub(MobWeak,'Dark','|cff5239f0|DRK');
 							MobWeak = string.gsub(MobWeak,'Impact','|cffa0a0a0|IMP');
-							MobWeak = string.gsub(MobWeak,'Hand-To-Hand','|cffa0a0a0|H2H');
+							MobWeak = string.gsub(MobWeak,'To','|cffa0a0a0|H2H'); -- The Phrase 'Hand-To-Hand' screws this all up! Haha!
+							MobWeak = string.gsub(MobWeak,'Hand','');             -- Gotta sub out three times!
+							MobWeak = string.gsub(MobWeak,'-','');               --
+
 							LastMob = tarserverid;
 					        break;
 						end -- END md_data/tarserverid compare
@@ -945,7 +953,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 			    local mX = AshitaCore:GetMemoryManager():GetEntity():GetLocalPositionX(TarID);
 			    local mY = AshitaCore:GetMemoryManager():GetEntity():GetLocalPositionY(TarID);
 			    local MobHead = AshitaCore:GetMemoryManager():GetEntity():GetLocalPositionYaw(TarID) * (180 / math.pi);
-                local PlayHead = playerent.Heading * (180 / math.pi);  -- Don't use Heading for mobs since it doesn't change if they turn while moving. Odd.
+                local PlayHead = playerent.Heading * (180 / math.pi);  -- ^^^ Don't use Heading for mobs since it doesn't change if they turn while moving. Odd.
 			    local EndAng = PlayHead + 45;
 			    local StartAng = PlayHead - 45;
 			    local Sneak = 0; 
@@ -1083,7 +1091,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 
 -------- Player Window
     if(ascii.settings.options.playwin == true) then
-        local sResult = '{__________________________________________________|r}'; 
+        local sResult = '{__________________________________________________|r}';
 	    local playernumber = 0;
 
 	    if (player == nil or playerent == nil) then 
@@ -1259,6 +1267,9 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 	    ascii.font_u.visible = true; 
 	    ascii.font_u.text = SelfStr;
 	    ascii.font_q.visible = true;
+		local testAT1 = playerent.ActionTimer1;
+		local testAT2 = playerent.ActionTimer2;
+		local testAniTime = playerent.AnimationTime;
 		ascii.font_q.text = string.format(sResult);
 ---- PET STUFF
         local pet = GetEntity(playerent.PetTargetIndex);
@@ -1335,6 +1346,7 @@ local function print_help(isError)
 		{ '/ASCII-Joy font     ', 'Toggles Window fonts between Consolas and Courier New.' },
 		{ '/ASCII-Joy size     ', 'Toggles through 3 different sizes fonts (10, 12, 14).' },
 		{ '/ASCII-Joy offset # ', 'Pixel-shifts the line-spacing (+/-)# pixels (Use if spaces between lines looks funny)' },
+		{ '/ASCII-Joy cast     ', 'Toggles the Cast Bar.' },
         { '/ASCII-Joy party    ', 'Toggles the Party Window on and off.' },
 	    { '/ASCII-Joy solo     ', 'Toggles seeing yourself in Party Window while solo (Zone Name remains).' },
 	    { '/ASCII-Joy player   ', 'Toggles Player Window of your own HP Bar, TP, Mana, Pet info (if you have one).' },
@@ -1398,6 +1410,17 @@ ashita.events.register('command', 'command_cb', function (ee)
 	    end
 		save_everything(); -- We will lose window positiions if they were moved from updating, so we will save twice.
 	    update_settings();
+        return;
+    end
+
+	if (#args == 2 and args[2]:any('cast')) then
+		ascii.settings.options.cast = not ascii.settings.options.cast;
+	    if(ascii.settings.options.cast == true) then
+	        print(chat.header(addon.name):append(chat.message('Cast Bar ENABLED.')));
+	    elseif(ascii.settings.options.cast == false) then
+	        print(chat.header(addon.name):append(chat.message('Cast Bar DISABLED.')));
+	    end
+	    save_everything();
         return;
     end
 
