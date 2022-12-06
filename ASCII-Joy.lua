@@ -28,7 +28,7 @@
 
 addon.author  = 'Drusciliana';
 addon.name    = 'ASCII-Joy';
-addon.version = '1.1.0';
+addon.version = '1.1.2';
 addon.desc = 'Relive the glory days before there were graphics, when MUDs were still cool, all while having a somewhat functional UI!';
 addon.link = 'Discord name is just plain old D. (with the period), #2154 if that helps. Stay on top of updates! https://github.com/Drusciliana/ASCII-Joy';
 
@@ -51,6 +51,7 @@ T{
 	monsbab = 	false,		
     playwin =   true,
     zilda =	    false,
+	grow =      true,
 	cast =      true,
 	offset =    0
 	},
@@ -172,6 +173,13 @@ local HeartContainer =
     [11]= { [1] = {}, [2] = {}, [3] = {}, [4] = {}, [5] = {} },
     [12]= { [1] = {}, [2] = {}, [3] = {}, [4] = {}, [5] = {} }
 };
+
+local Sword = -- Trying to change TP to look like sword icons.
+{
+	[1] = {},
+	[2] = {},
+	[3] = {},
+}
 
 local jobs = {
 	[0]  = '   ', -- Some Trust party npc's on some servers actually are set to 0 for job or subjob. 
@@ -324,6 +332,17 @@ ashita.events.register('load', 'load_cb', function ()
         HeartContainer[x][y].visible = false;
 	    end
     end
+-- Sword TP Icons
+    for x = 1, 3 do
+		Sword[x] = primitives.new();
+		Sword[x].position_x = 0;
+		Sword[x].position_y = 0;
+		Sword[x].width = 48;
+		Sword[x].height = 48;
+		Sword[x].color = 0xffffffff;
+		Sword[x].texture = ('%s\\addons\\%s\\icons\\%s.png'):fmt(AshitaCore:GetInstallPath(),'ASCII-Joy', (x+5)); -- 1 to 5 reserved for hearts.
+		Sword[x].visible = false;
+	end
 -- Cast Bar label
     ascii.font_c = fonts.new(ascii.settings.castfont);
 -- Monster Window labels
@@ -442,30 +461,16 @@ ashita.events.register('unload', 'unload_cb', function ()
 	    end;
 	    HeartContainer = T{ };
     end    
+	if (Sword ~= nil) then
+		for x = 1, 3 do
+			Sword[x].visible = false;
+			Sword[x]:destroy();
+	    end
+		Sword = T{ };
+	end	
+
 end);
 
-local function get_target_ht()
-    local e = nil;
-
-    for x = 0, 2303 do
-        local entity = GetEntity(x);
-        if (entity ~= nil and entity.StatusServer ~= 2 and entity.StatusServer ~= 3) then
-            if (bit.band(bit.rshift(entity.Render.Flags0, 5), 1) == 1) then
-                if (bit.band(bit.rshift(entity.Render.Flags1, 16), 1) == 1) then
-                    if (e == nil) then
-                        e = entity;
-                    else
-                        if (math.sqrt(entity.Distance) < math.sqrt(e.Distance)) then
-                            e = entity;
-                        end
-                    end 
-                end
-            end
-        end
-    end
-
-    return e;
-end
 ----------------------------------------------------------------------------------------------------
 -- func: render
 -- desc: Event called when the addon is being rendered.
@@ -502,6 +507,9 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 			    HeartContainer[x][y].visible = false;
 			end	
 		end
+		for x = 1, 3 do
+			Sword[x].visible = false;
+		end
 		ascii.font_c.visible = false;
 	    ascii.font_e.visible = false;
 		ascii.font_l.visible = false;
@@ -526,12 +534,13 @@ ashita.events.register('d3d_present', 'present_cb', function ()
     if (tick >= 30) then
        	tick = 0;
     end
-	if (tick == 0 or tick == 15) then
+	if (tick == 0) then -- We don't want to flood the server too much, only unlock the Check every 30 renders.
 	    CheckLock = false;
     end
 				--** Changing zones? Pull a new data file
     ZoneIDStart = party:GetMemberZone(playerfound);
 	----** WE NEED DATAFILES EVEN WITHOUT MONSTER WINDOW TO COMPARE NPC's, MONSTERS, OBJECTS, PLAYERS, etc. FOR TARGET WINDOW! MAYBE?
+	----** OR IN CASE MONSTER WINDOW IS TURNED ON BEFORE THEY ZONE, WHEN LASTZONE AND ZONEIDSTART WOULD BE THE SAME ANYWAY.
     if (ZoneIDStart > 0 and LastZone ~= ZoneIDStart) then  -- We're not in some limbo zone, and we're in a different zone than before.
         local zonefile = io.open(('%s\\addons\\ASCII-Joy\\data\\%s.lua'):fmt(AshitaCore:GetInstallPath(), tostring(ZoneIDStart)), 'r');
         if (zonefile ~= nil) then -- We have a file.
@@ -558,7 +567,9 @@ ashita.events.register('d3d_present', 'present_cb', function ()
     	
 	    if (CastType ~= 0) then
 		    CastColor = '|cffffffff|';
-	    end
+		elseif (CastType ~= 1) then
+		    CastColor = '|cffffff00|';
+		end
 
 	    CastStr = string.gsub(CastStr,'_',CastColor..'@|c00000000|',CastChk);
 		
@@ -773,7 +784,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 		                end
 		                ZoneName = string.sub(ZoneName, 1, 21);
 
-	                    Output = (NameColor..Name..leadstar..'| |cc0c0c0c0|'..' '..tostring(ZoneName)..'|r  ');
+	                    Output = (' '..NameColor..Name..leadstar..'| |cc0c0c0c0|'..' '..tostring(ZoneName)..'|r  ');
 	 	                OutTwo = '                                     ';
 	                    ascii.font_f[x].text = tostring(Output);
 	                    ascii.font_g[x].text = tostring(OutTwo);
@@ -805,11 +816,6 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 	        ascii.font_g[x].visible = false;
 	        ascii.font_h[x].visible = false;
 	    end
-		for x = 1, 12 do
-			for y = 1, 5 do
-			    HeartContainer[x][y].visible = false;
-			end	
-		end
     end
 -------- END Party Window
 
@@ -1158,8 +1164,19 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 	        local HeartFull = 0;
 	        local HeartFrac = 0;
 	        local value = 1; -- VALUE IS PLACEHOLDER IN HEART LINE (1 to 12).
+			local HeartMax = 0;
+			local SwordNum = 0;
 
-	        HeartFull , HeartFrac = math.modf(HPValue / (100 / 12));  -- DENOMINATOR IS HOW MANY HEART CONTAINERS
+			if(ascii.settings.options.grow == false) then
+				HeartMax = 12;
+			else
+				HeartMax , _ = 3 + math.modf(SelfHPMax / 111); -- Always start with 3 HeartContainers, get another every 111 Max HP afterwards. 12 at 1k.
+				if (HeartMax > 12) then 
+					HeartMax = 12;  -- Always keep the Maximum at 12.
+				end
+            end
+
+	        HeartFull , HeartFrac = math.modf(HPValue / (100 / HeartMax));  -- DENOMINATOR IS HOW MANY HEART CONTAINERS
 	        HeartFullTot = HeartFull;
 
 	        while HeartFull > 0 do
@@ -1186,19 +1203,41 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 	
 	        value = value + 1; -- Increase value from the fractional Heart
 
-	        while value <= 12 do
+	        while value <= HeartMax do
 	            HeartNum[value] = 1; -- EMPTY HEART
 	            value = value + 1;
 	        end
 				-- DRAW HEARTS
-	        for x = 1, 12 do
+			for x = 1, 12 do
 				for y = 1, 5 do
-                    HeartContainer[x][y].visible = false; -- Need to constantly blank every heart in the array.
+                    HeartContainer[x][y].visible = false; -- Need to constantly blank every heart in the array, if they are needed or not.
 				end
-	            HeartContainer[x][HeartNum[x]].position_x = ascii.font_q.position_x + 85 + (x * 48);
+			end
+
+	        for x = 1, HeartMax do  -- Now we can draw however many Heart Containers we want.
+				HeartContainer[x][HeartNum[x]].position_x = ascii.font_q.position_x + 85 + (x * 48);
 	            HeartContainer[x][HeartNum[x]].position_y = ascii.font_q.position_y;
 				HeartContainer[x][HeartNum[x]].locked = true;
 	            HeartContainer[x][HeartNum[x]].visible = true;
+			end
+
+			for x = 1, 3 do -- Always blank the Swords, just like the Hearts.
+				Sword[x].visible = false;
+			end
+
+			if (SelfTP >= 1000) then
+                if (SelfTP >= 3000) then
+					SwordNum = 3;
+				elseif (SelfTP >= 2000) then
+					SwordNum = 2;
+				elseif (SelfTP >= 1000) then
+					SwordNum = 1;
+				end
+
+				Sword[SwordNum].position_x = ascii.font_q.position_x + 85 + (8 * 48); -- Put it under the 8th Heart Container?
+	            Sword[SwordNum].position_y = ascii.font_q.position_y + 48;
+				Sword[SwordNum].locked = true;
+				Sword[SwordNum].visible = true;
 			end
 
             if (HPValue <= 0) then
@@ -1216,8 +1255,8 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 	        ascii.font_r.position_y = ascii.font_q.position_y + (selffontsize * 2) + offset + 28;
             ascii.font_u.position_x = ascii.font_q.position_x;
 	        ascii.font_u.position_y = ascii.font_q.position_y + (selffontsize * 2) + offset + 28;
-	        
-	        SelfStr = SelfStr..SelfHPStr..' / '..SelfHPMStr..'   |cffff40b0|'..SelfMPStr..' / '..SelfMPMStr..'     '..SelfTPStr..' ';
+	                                                                                                               --VV VV VV Remove TP for now for the sword, and add 4 spaces.
+	        SelfStr = SelfStr..SelfHPStr..' / '..SelfHPMStr..'   |cffff40b0|'..SelfMPStr..' / '..SelfMPMStr..'     '..--[[SelfTPStr..' ']]'     '; 
 	    else	-------------- THIS IS 'Q' LINE?
 	        SelfStr = SelfStr..SelfTPStr..'     '..SelfHPStr..' / '..SelfHPMStr..'   |cffff40b0|'..SelfMPStr..' / '..SelfMPMStr..' |r';
 
@@ -1267,9 +1306,6 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 	    ascii.font_u.visible = true; 
 	    ascii.font_u.text = SelfStr;
 	    ascii.font_q.visible = true;
-		local testAT1 = playerent.ActionTimer1;
-		local testAT2 = playerent.ActionTimer2;
-		local testAniTime = playerent.AnimationTime;
 		ascii.font_q.text = string.format(sResult);
 ---- PET STUFF
         local pet = GetEntity(playerent.PetTargetIndex);
@@ -1296,19 +1332,19 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 	            petname = petname.." ";
 	        end
 			ascii.font_r.background.visible = false;
-	        ascii.font_r.text = (string.format(petname));
+	        ascii.font_r.text = string.format(petname);
             pResult = string.gsub(pResult,'_','|cff49497e|#|c00000000|',PHCheck);
-	        ascii.font_s.text = (string.format(pResult));
+	        ascii.font_s.text = string.format(pResult);
 
 	        if (pettp >= 1000) then
 	            PTColor = '|cff40a040|';
 	        end
 
 	        if (petmp >= 100) then
-	            PMColor = '|cfeb63fa|';
+	            PMColor = '|cffff00cc|';
 	        end
             pmResult = string.gsub(pmResult,'_',PMColor..'#|c00000000|',PMCheck);
-	        ascii.font_t.text = (string.format(tResult..'        '..pmResult));
+	        ascii.font_t.text = string.format(tResult..'        '..pmResult);
 	    else
             ascii.font_r.visible = false;
 	        ascii.font_s.visible = false;
@@ -1320,15 +1356,18 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 	    ascii.font_s.visible = false;
 	    ascii.font_t.visible = false;
 	    ascii.font_u.visible = false;
+		for x = 1, 12 do
+			for y = 1, 5 do
+			    HeartContainer[x][y].visible = false;
+			end	
+		end
+		for x = 1, 3 do
+			Sword[x].visible = false;
+		end
     end
 -------- END Self Window
 end);  ------------ END MAIN FUNCTION
 
---[[
-* Prints the addon help information.
-*
-* @param {boolean} isError - Flag if this function was invoked due to an error.
---]]
 local function print_help(isError)
     -- Print the help header..
     if (isError) then
@@ -1342,15 +1381,16 @@ local function print_help(isError)
 	    { '  ', 'Toggling any option will automatically save.' },
         { '/ASCII-Joy help     ', 'Displays this help information.' },
         { '/ASCII-Joy save     ', 'Saves the positions of the windows after you move them.' },
-		{ '/ASCII-Joy back     ', 'Toggles Window Backgrounds. Rotates through (off / light / dark) (Requires Restart).' },
+		{ '/ASCII-Joy back     ', 'Toggles Window Backgrounds. Rotates through (off / light / dark).' },
 		{ '/ASCII-Joy font     ', 'Toggles Window fonts between Consolas and Courier New.' },
-		{ '/ASCII-Joy size     ', 'Toggles through 3 different sizes fonts (10, 12, 14).' },
-		{ '/ASCII-Joy offset # ', 'Pixel-shifts the line-spacing (+/-)# pixels (Use if spaces between lines looks funny)' },
+		{ '/ASCII-Joy size     ', 'Toggles through 3 different size fonts (10, 12, 14).' },
+		{ '/ASCII-Joy offset # ', 'Pixel-shifts the line-spacing (+/-)# pixels (Use if spaces between lines look funny)' },
 		{ '/ASCII-Joy cast     ', 'Toggles the Cast Bar.' },
         { '/ASCII-Joy party    ', 'Toggles the Party Window on and off.' },
 	    { '/ASCII-Joy solo     ', 'Toggles seeing yourself in Party Window while solo (Zone Name remains).' },
 	    { '/ASCII-Joy player   ', 'Toggles Player Window of your own HP Bar, TP, Mana, Pet info (if you have one).' },
-        { '/ASCII-Joy zilda     ', 'Toggles Health bar from ASCII to Hearts from "The Myth of Zilda(tm)"!' },
+        { '/ASCII-Joy zilda    ', 'Toggles Health bar from ASCII to Hearts from "The Myth of Zilda(tm)"!' },
+        { '/ASCII-Joy grow     ', 'Toggles if you always see 12 Heart Containers, or get more as you level up (up to 12 Max).' },
 	    { '/ASCII-Joy monster ', 'Toggles the Monster Health/Sub-Target Window.' },
 	    { '/ASCII-Joy mon-pos ', 'Toggles Monster info Above/Below their Health Bar.' },
 	    { '/ASCII-Joy mon-info', 'Toggles Aggro/Weak info. Not live info, pulled from file.' },
@@ -1579,6 +1619,9 @@ ashita.events.register('command', 'command_cb', function (ee)
 						HeartContainer[x][y].visible = false; -- Need to constantly blank these if we want them off
 					end
                 end
+				for x = 1, 3 do
+					Sword[x].visible = false; -- Blank the Swords too.
+				end
 	            print(chat.header(addon.name):append(chat.message('You will see the Old School ASCII Health Bar.')));
 	        end
 	        save_everything();
@@ -1589,11 +1632,21 @@ ashita.events.register('command', 'command_cb', function (ee)
         end
     end
 
+	if (#args == 2 and args[2]:any('grow')) then
+		ascii.settings.options.grow = not ascii.settings.options.grow;
+	    if(ascii.settings.options.grow == false) then
+	        print(chat.header(addon.name):append(chat.message('You will always see the Full 12 Heart Containers')));
+	    elseif(ascii.settings.options.grow == true) then
+	        print(chat.header(addon.name):append(chat.message('You will earn more Heart Containers as you level up (12 Maximum).')));
+	    end
+	    save_everything();
+        return;
+    end
     -- Unhandled: Print help information..
     print_help(true);
 end);
 
-ashita.events.register('packet_in', 'packet_in_cb', function (e)
+ashita.events.register('packet_in', 'packet_in_cb', function (e) -- Checker addon by Atom0s. Used with permission.
     -- Packet: Zone Enter / Zone Leave
     if (e.id == 0x000A or e.id == 0x000B) then
         return;
