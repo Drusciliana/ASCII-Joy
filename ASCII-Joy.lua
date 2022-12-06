@@ -1042,6 +1042,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                 ascii.font_l.text = tostring(OutEig);
                 ascii.font_o.text = tostring(OutSix);
             else
+                ascii.font_l.visible = false;                 
                 ascii.font_o.visible = false;
             end
         end
