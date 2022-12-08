@@ -48,7 +48,7 @@ Here's some Syntax:
         /ASCII-Joy player    Toggles Player Window of your own HP Bar, TP, Mana, Pet info (if you have one).
         /ASCII-Joy zilda     Toggles Health bar from ASCII to Hearts from "The Myth of Zilda(tm)"!
         /ASCII-Joy grow      Toggles if you always see 12 Heart Containers, or get more as you level up (up to 12 Max).
-	/ASCII-Joy fairy     Toggles whether the Fairy will grace you with her presence, depending on your point of view.
+        /ASCII-Joy fairy     Toggles whether the Fairy will grace you with her presence, depending on your point of view.
         /ASCII-Joy monster   Toggles the Monster Health/Sub-Target Window
         /ASCII-Joy mon-pos   Toggles Monster info Above/Below their Health Bar.
         /ASCII-Joy mon-info  Toggles Aggro/Weak info. Not live info, pulled from file.
