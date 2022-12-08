@@ -28,7 +28,7 @@
 
 addon.author  = 'Drusciliana';
 addon.name    = 'ASCII-Joy';
-addon.version = '1.1.2';
+addon.version = '1.2.0';
 addon.desc = 'Relive the glory days before there were graphics, when MUDs were still cool, all while having a somewhat functional UI!';
 addon.link = 'Discord name is just plain old D. (with the period), #2154 if that helps. Stay on top of updates! https://github.com/Drusciliana/ASCII-Joy';
 
@@ -53,6 +53,7 @@ T{
     zilda =     false,
     grow =      true,
     cast =      true,
+    fairy =     true,
     offset =    0
     },
     partyfont = T{
@@ -68,7 +69,7 @@ T{
         background = T{
             color = 0xff000000,
             visible = true
-	}
+	    }
     },
     castfont = T{
         font_family = "Consolas",
@@ -125,6 +126,7 @@ local MobLvl = 0;
 local MobDefEva ='(   ????   )';
 local MobType = '     ???     ';
 local MobLvlStr = '???';
+local SneakAttack = false;
 local CheckLock = true; 
 local GotPacket = true; -- Latch so we don't flood server with packets.
 local checker = T{ ---- From Atom0s' checker addon.
@@ -152,6 +154,12 @@ local checker = T{ ---- From Atom0s' checker addon.
 };
 -------------------------------------------------------------------
 local tick = 0;
+local afktimer = 0;
+local FairyPosX = 0;
+local FairyPosy = 0;
+local FairyMessage = '';
+local FairyMesTimer = 0;
+local FairySafeTime = 0;
 local Progress = 0; -- For Cast Bar. Can't find variable to show if we are casting or interrupted or not. Maybe missing something.
 local LastZone = 9999; -- To remember when we are zoning.
 local mb_data = {};
@@ -178,7 +186,13 @@ local Sword = -- Trying to change TP to look like sword icons.
 {
 	[1] = {},
 	[2] = {},
-	[3] = {},
+	[3] = {}
+}
+
+local Fairy = -- This would probably turn out to be annoying. Oh well. Haha.
+{
+    [1] = {},
+    [2] = {}
 }
 
 local jobs = {
@@ -220,6 +234,7 @@ local ascii = T{
     font_s = nil,
     font_t = nil,
     font_u = nil,
+    font_v = nil,
     font_f = T{ },	
     font_g = T{ },
     font_h = T{ },
@@ -270,6 +285,9 @@ local function update_settings(s)
     if (ascii.font_u ~= nil) then
         ascii.font_u:apply(ascii.settings.selffont);
     end
+    if (ascii.font_v ~= nil) then
+        ascii.font_v:apply(ascii.settings.selffont);
+    end
     ascii.font_f:each(function (v, _)
         if (v ~= nil) then
             v:apply(ascii.settings.partyfont);
@@ -310,6 +328,19 @@ local function SendCheckPacket(mobIndex)
     local checkPacket = struct.pack('LLHHBBBB', 0, mobId, mobIndex, 0x00, 0x00, 0x00, 0x00, 0x00):totable();
     AshitaCore:GetPacketManager():AddOutgoingPacket(0xDD, checkPacket);
 end
+
+local function GetFairyMessage (mestype)
+    local Message = 'Blah!';
+    local count = 0;
+    local _, fairy_data = pcall(require,'data.'..tostring('Fairy'));
+    if (fairy_data == nil or type(fairy_data) ~= 'table') then
+        fairy_data = { };
+    else
+        count = #fairy_data[mestype];
+        Message = fairy_data[mestype][math.random(1,count)];
+    end
+    return Message;
+end
 ----------------------------------------------------------------------------------------------------
 -- func: load
 -- desc: Event called when the addon is being loaded.
@@ -343,6 +374,17 @@ ashita.events.register('load', 'load_cb', function ()
         Sword[x].texture = ('%s\\addons\\%s\\icons\\%s.png'):fmt(AshitaCore:GetInstallPath(),'ASCII-Joy', (x+5)); -- 1 to 5 reserved for hearts.
         Sword[x].visible = false;
     end
+    -- Anooying Fairy AFK Icons
+    for x = 1, 2 do
+        Fairy[x] = primitives.new();
+        Fairy[x].position_x = 0;
+        Fairy[x].position_y = 0;
+        Fairy[x].width = 48;
+        Fairy[x].height = 48;
+        Fairy[x].color = 0xffffffff;
+        Fairy[x].texture = ('%s\\addons\\%s\\icons\\%s.png'):fmt(AshitaCore:GetInstallPath(),'ASCII-Joy', (x+8)); -- 1 - 8 reserved for hearts and swords.
+        Fairy[x].visible = false;
+    end
 -- Cast Bar label
     ascii.font_c = fonts.new(ascii.settings.castfont);
 -- Monster Window labels
@@ -357,6 +399,7 @@ ashita.events.register('load', 'load_cb', function ()
     ascii.font_s = fonts.new(ascii.settings.selffont);
     ascii.font_t = fonts.new(ascii.settings.selffont);
     ascii.font_u = fonts.new(ascii.settings.selffont);
+    ascii.font_v = fonts.new(ascii.settings.selffont);
 ---- Party Window labels
     ascii.font_e = fonts.new(ascii.settings.partyfont);
 --    for x = 0, 17 do  -- Not ready do try alliance yet
@@ -375,7 +418,6 @@ ashita.events.register('load', 'load_cb', function ()
     arraySize = #(mb_data);
 
     print(chat.header(addon.name):append(chat.message('Please type /ASCII-Joy to bring up the *extensive* addon menu.')));
-
 end);
 
 ----------------------------------------------------------------------------------------------------
@@ -434,6 +476,10 @@ ashita.events.register('unload', 'unload_cb', function ()
 	    ascii.font_u:destroy();
 	    ascii.font_u = nil;
     end
+    if (ascii.font_v ~= nil) then
+	    ascii.font_v:destroy();
+	    ascii.font_v = nil;
+    end
     if (ascii.font_f ~= nil) then
 	    ascii.font_f:each(function (v, _)
 		    v:destroy();
@@ -468,8 +514,191 @@ ashita.events.register('unload', 'unload_cb', function ()
         end
         Sword = T{ };
     end	
+    if (Fairy ~= nil) then
+        for x = 1, 2 do
+            Fairy[x].visible = false;
+            Fairy[x]:destroy();
+        end
+        Fairy = T{ };
+    end	
 end);
 
+local function FairyCatch(type, X, Y)
+    FairyMessage = GetFairyMessage(type);  
+    local NewFairyPosX = 0;
+    local NewFairyPosY = 0; 
+    if (type == 1 or type == 5) then -- Make Idle  and Death Catch only teleport it around.
+        NewFairyPosX = math.random(100, 1800);
+        NewFairyPosY = math.random(100, 900);
+    elseif (type == 3) then
+        NewFairyPosX = ascii.font_m.position_x;
+        NewFairyPosY = ascii.font_m.position_y;
+    end
+
+    for y = 1, 2 do -- Not sure why I'm using Y without X. Oh well.
+        Fairy[y].visible = false;
+        Fairy[y]:destroy(); -- Destroy them for those cheating and holding down the Shift Key the whole time.
+        Fairy[y] = primitives.new();
+        Fairy[y].position_x = NewFairyPosX;
+        Fairy[y].position_y = NewFairyPosY;
+        Fairy[y].width = 48;
+        Fairy[y].height = 48;
+        Fairy[y].color = 0xffffffff;
+        Fairy[y].texture = ('%s\\addons\\%s\\icons\\%s.png'):fmt(AshitaCore:GetInstallPath(),'ASCII-Joy', (y+8)); -- 1 - 8 reserved for hearts and swords.
+        Fairy[y].visible = false; -- Had a reason, there was a need, to declare visible false before and after the destroy. Forget. 
+    end
+    FairyMesTimer = 0; -- Start the timer.    
+    FairySafeTime = 0;
+    return NewFairyPosX, NewFairyPosY;
+end    
+
+local function FairyFun(playerent)
+        ---Types are 1 for idle, 3 for Sneak Attack, 5 for Death.
+    local FairyWing = 0;
+    local FairyTime = 10000; -- How many frames until AFK?
+    local FairyShow = false;
+    local FairyType = 0;
+
+    if (playerent == nil) then
+        return;
+    end
+
+    if (SneakAttack == true and playerent.HPPercent > 0) then -- Sneak Attack and alive.
+        FairyType = 3;
+    elseif (playerent.HPPercent <= 0) then -- Dead.
+        FairyType = 5;
+    else -- Must be idling.
+        FairyType = 1;
+    end
+
+    if (Fairy[1].visible == true or Fairy[2].visble == true) then
+        for x = 1, 2 do
+            Fairy[x].visible = false; -- Blank them.
+        end
+    end
+
+    if (FairyType == 1 or FairyType == 5 or FairyType == 3) then -- Main Function
+        afktimer = afktimer + 1;        
+        if ((AshitaCore:GetMemoryManager():GetCastBar():GetPercent() ~= 1 and Progress ~= (AshitaCore:GetMemoryManager():GetCastBar():GetPercent() * 100)) or
+            playerent.AnimationTime ~= 0 or (playerent.ActionTimer2 ~= 0 and playerent.ActionTimer2 ~= 1800)) then
+                afktimer = 0;  -- All this means is if we are casting, fighting, or moving. Therefore, not AFK.
+        end
+
+        if (FairyPosX == 0 or FairyPosY == 0 or afktimer == FairyTime)  then 
+            FairyPosX = math.random(100, 1700);
+            FairyPosY = math.random(100, 900);
+            for x = 1, 2 do
+                Fairy[x].position_x = FairyPosX;
+                Fairy[x].position_y = FairyPosY;
+            end
+        end
+
+        if (afktimer > FairyTime or FairyType == 5 or FairyType == 3) then -- Why wait if they're dead?
+            if (afktimer > 60000) then -- We don't know how large the integer can be, so we don't want to exceed it's boundaries.
+                afktimer = FairyTime + 1; -- This way the Fairy  never resets to random location. Will go on forever.
+            end
+
+            FairyMesTimer = FairyMesTimer + 1;
+
+            if (FairyType ~= 3) then
+                if (FairyPosX ~= Fairy[1].position_x or FairyPosY ~= Fairy[1].position_y or
+                    FairyPosX ~= Fairy[2].position_x or FairyPosY ~= Fairy[2].position_y) then -- Catching the Fairy?
+                        FairyPosX, FairyPosY = FairyCatch(FairyType, FairyPosX, FairyPosY);
+                end
+            elseif ((Fairy[1].position_x > (ascii.font_m.position_x + 40) or Fairy[1].position_x < ascii.font_m.position_x or
+                    Fairy[2].position_x > (ascii.font_m.position_x + 40) or Fairy[2].position_x < ascii.font_m.position_x or
+                    Fairy[1].position_y > (ascii.font_m.position_y + 20) or Fairy[1].position_y < (ascii.font_m.position_y - 20) or  
+                    Fairy[2].position_y > (ascii.font_m.position_y + 20) or Fairy[2].position_y < (ascii.font_m.position_y - 20)) and 
+                    (Fairy[1].visible == true or Fairy[2].visible == true)) then -- Put the True condition to make sure she's already there, to prevent initial False Positive checks on Sneak Attack?
+                        FairyPosX, FairyPosY = FairyCatch(FairyType, FairyPosX, FairyPosY);
+            end             
+
+            FairySafeTime = FairySafeTime + 1;
+            if (FairyType == 3) then
+                Fairytime = Fairytime / 2;
+            end
+            if (FairySafeTime >= (FairyTime / 10)) then
+                FairySafeTime = 0;
+                FairyMessage = GetFairyMessage(FairyType + 1);
+                FairyMesTimer = 0; -- Start the timer.
+            end
+
+            FairyPosX = FairyPosX + math.random(-4, 4);
+            FairyPosY = FairyPosY + math.random(-4, 4);
+            if (FairyType == 3) then -- Keep her near the Monster Bar.
+                if (FairyPosX > (ascii.font_m.position_x + 40) or FairyPosX < ascii.font_m.position_x or -- Started at + 20, so including that shift.
+                    FairyPosY > (ascii.font_m.position_y + 20) or FairyPosY < (ascii.font_m.position_y - 20)) then
+                        FairyPosX = ascii.font_m.position_x + 20;
+                        FairyPosY = ascii.font_m.position_y;
+                        for x = 1, 2 do
+                            Fairy[x].position_x = FairyPosX;
+                            Fairy[x].position_y = FairyPosY;
+                        end
+                end
+            end
+
+            if (FairyPosX < 0 or FairyPosY < 0 or FairyPosX > 1800 or FairyPosY > 900) then
+                if (FairyType ~= 3) then -- Try to keep it from going off the edges of the screen (not sure people's resolution).
+                    FairyPosX = math.random(100, 1800);
+                    FairyPosY = math.random(100, 900);
+                end
+            end
+            FairyShow = true;
+        else
+            Fairy[1].visible = false;
+            Fairy[2].visible = false;
+            FairyShow = false;
+        end
+    end 
+
+        -- Always here.
+    if (FairyShow == true) then
+        if (FairyMesTimer >= 200) then -- Leave at 200 frames
+            FairyMesTimer = 0; -- Reset the timer and the messages
+            FairyMessage = '';
+            FairtMesNum = 0;
+        end
+
+        for x = 1, 2 do -- Actually move it.
+            Fairy[x].position_x = FairyPosX;
+            Fairy[x].position_y = FairyPosY;
+        end
+        _, FairyWing = math.modf(tick / 10);
+        if (FairyWing >= .5) then
+            Fairy[1].visible = true;
+            Fairy[2].visible = false;
+        else
+            Fairy[1].visible = false;
+            Fairy[2].visible = true;
+        end
+
+        if (FairyMesTimer < 100) then -- Leave at 100 frames.
+            ascii.font_v.font_family = 'Arial';
+            ascii.font_v.font_height = 16;
+            ascii.font_v.color = 0xff000000;
+            ascii.font_v.bold = true;
+            ascii.font_v.locked = true;
+            if (Fairy[1].position_x < 1600) then -- Keep the text on the screen.
+                ascii.font_v.right_justified = false;
+                ascii.font_v.position_x = Fairy[1].position_x + 48; 
+            else
+                ascii.font_v.right_justified = true;
+                ascii.font_v.position_x = Fairy[1].position_x;
+            end
+            ascii.font_v.position_y = Fairy[1].position_y - 30;
+            ascii.font_v.background.color = 0xffffffff;
+            ascii.font_v.background.visible = true;
+            ascii.font_v.visible = true;
+            ascii.font_v.text = FairyMessage;
+        else
+            ascii.font_v.text = '';
+            ascii.font_v.visible = false;
+        end
+    else
+        ascii.font_v.text = '';
+        ascii.font_v.visible = false;
+    end
+ end
 ----------------------------------------------------------------------------------------------------
 -- func: render
 -- desc: Event called when the addon is being rendered.
@@ -509,6 +738,9 @@ ashita.events.register('d3d_present', 'present_cb', function ()
         for x = 1, 3 do
             Sword[x].visible = false;
         end
+        for x = 1, 2 do
+            Fairy[x].visible = false;
+        end
         ascii.font_c.visible = false;
         ascii.font_e.visible = false;
         ascii.font_l.visible = false;
@@ -521,6 +753,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
         ascii.font_s.visible = false;
         ascii.font_t.visible = false;
         ascii.font_u.visible = false;
+        ascii.font_v.visible = false;
         return;
     else
         ascii.font_c.locked = false; --
@@ -536,6 +769,10 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 	if (tick == 0) then -- We don't want to flood the server too much, only unlock the Check every 30 renders.
 	    CheckLock = false;
     end
+
+    if (ascii.settings.options.fairy == true and ascii.settings.options.zilda == true) then
+        FairyFun(playerent);
+    end 
 				--** Changing zones? Pull a new data file
     ZoneIDStart = party:GetMemberZone(playerfound);
 	----** WE NEED DATAFILES EVEN WITHOUT MONSTER WINDOW TO COMPARE NPC's, MONSTERS, OBJECTS, PLAYERS, etc. FOR TARGET WINDOW! MAYBE?
@@ -945,6 +1182,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
             ascii.font_n.visible = false;    --
             ascii.font_o.visible = false;    --
             ascii.font_l.visible = false;    --
+            SneakAttack = false;
         else
             ------ SNEAK ATTACK FUNCTION!!!
             if (player:GetMainJob() == 6 or player:GetSubJob() == 6) then
@@ -1000,20 +1238,35 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 
                 if(StartAng < EndAng) then    ---- DO WE WANT THE END RESULT AS BACKGROUND COLOR CHANGE?
                     if (Sneak <= 45 and Dist <= 3 and StartAng <= Bearing and Bearing <= EndAng) then
-                        ascii.font_m.background.color = 0xFF000044;
+                        if (ascii.settings.options.zilda == true and ascii.settings.options.fairy == true) then
+                            SneakAttack = true;
+                        else
+                            ascii.font_m.background.color = 0xFF000044;
+                        end
                     else
-                        ascii.font_m.background.color = ascii.settings.monsterfont.background.color;
+                        if (ascii.settings.options.zilda == true and ascii.settings.options.fairy == true) then
+                            SneakAttack = false;
+                        else
+                            ascii.font_m.background.color = ascii.settings.monsterfont.background.color;
+                        end
                     end
                 else
                     if (Sneak <= 45 and Dist <= 3 and (StartAng <= Bearing or Bearing <= EndAng)) then
-                        ascii.font_m.background.color = 0xFF000044;
+                        if (ascii.settings.options.zilda == true and ascii.settings.options.fairy == true) then
+                            SneakAttack = true;
+                        else
+                            ascii.font_m.background.color = 0xFF000044;
+                        end
                     else
-                        ascii.font_m.background.color = ascii.settings.monsterfont.background.color;
+                        if (ascii.settings.options.zilda == true and ascii.settings.options.fairy == true) then
+                            SneakAttack = false;
+                        else
+                            ascii.font_m.background.color = ascii.settings.monsterfont.background.color;
+                        end
                     end
                 end
             end
 	-------------- END SNEAK ATTACK FUNCTION!
-
             OutFou = mobResult;
             OutFiv = MobName;
             OutSix = MobWeak;
@@ -1385,6 +1638,7 @@ local function print_help(isError)
         { '/ASCII-Joy player   ', 'Toggles Player Window of your own HP Bar, TP, Mana, Pet info (if you have one).' },
         { '/ASCII-Joy zilda    ', 'Toggles Health bar from ASCII to Hearts from "The Myth of Zilda(tm)"!' },
         { '/ASCII-Joy grow     ', 'Toggles if you always see 12 Heart Containers, or get more as you level up (up to 12 Max).' },
+        { '/ASCII-Joy fairy    ', 'Toggles whether the Fairy will grace you with her presence, depending on your point of view.' },
         { '/ASCII-Joy monster ', 'Toggles the Monster Health/Sub-Target Window.' },
         { '/ASCII-Joy mon-pos ', 'Toggles Monster info Above/Below their Health Bar.' },
         { '/ASCII-Joy mon-info', 'Toggles Aggro/Weak info. Not live info, pulled from file.' },
@@ -1616,6 +1870,10 @@ ashita.events.register('command', 'command_cb', function (ee)
                 for x = 1, 3 do
                     Sword[x].visible = false; -- Blank the Swords too.
                 end
+                ascii.font_v.visible = false;
+                for x = 1, 2 do
+                    Fairy[x].visible = false;
+                end
                 print(chat.header(addon.name):append(chat.message('You will see the Old School ASCII Health Bar.')));
             end
             save_everything();
@@ -1627,15 +1885,50 @@ ashita.events.register('command', 'command_cb', function (ee)
     end
 
     if (#args == 2 and args[2]:any('grow')) then
-        ascii.settings.options.grow = not ascii.settings.options.grow;
-        if(ascii.settings.options.grow == false) then
-            print(chat.header(addon.name):append(chat.message('You will always see the Full 12 Heart Containers')));
-        elseif(ascii.settings.options.grow == true) then
-            print(chat.header(addon.name):append(chat.message('You will earn more Heart Containers as you level up (12 Maximum).')));
+        if(ascii.settings.options.playwin == true) then
+            if(ascii.settings.options.zilda == true) then
+                ascii.settings.options.grow = not ascii.settings.options.grow;
+                if(ascii.settings.options.grow == false) then
+                    print(chat.header(addon.name):append(chat.message('You will always see the Full 12 Heart Containers')));
+                elseif(ascii.settings.options.grow == true) then
+                    print(chat.header(addon.name):append(chat.message('You will earn more Heart Containers as you level up (12 Maximum).')));
+                end
+                save_everything();
+                return;
+            else
+                print(chat.header(addon.name):append(chat.message('You need to have Icons from "The Myth of Zilda(tm)" enabled to toggle this.')));
+                return;
+            end
+        else
+            print(chat.header(addon.name):append(chat.message('You need the Player Window enabled to toggle this.')));
+            return;
         end
-        save_everything();
-        return;
     end
+
+    if (#args == 2 and args[2]:any('fairy')) then
+        if(ascii.settings.options.playwin == true) then
+            if(ascii.settings.options.zilda == true) then
+                ascii.settings.options.fairy = not ascii.settings.options.fairy;
+                if(ascii.settings.options.fairy == false) then
+                    print(chat.header(addon.name):append(chat.message('The Fairy will leave you alone and has flown home. Maybe.')));
+                    ascii.font_v.visible = false;
+                    for x = 1, 2 do
+                        Fairy[x].visible = false;
+                    end
+                elseif(ascii.settings.options.fairy == true) then
+                    print(chat.header(addon.name):append(chat.message('The Fairy will now lie in wait, stalking you...')));
+                end
+                save_everything();
+                return;
+            else
+                print(chat.header(addon.name):append(chat.message('You need to have Icons from "The Myth of Zilda(tm)" enabled to toggle this.')));
+                return;
+            end
+        else
+            print(chat.header(addon.name):append(chat.message('You need the Player Window enabled to toggle this.')));
+            return;
+        end
+    end    
     -- Unhandled: Print help information..
     print_help(true);
 end);
