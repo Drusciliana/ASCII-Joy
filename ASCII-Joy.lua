@@ -580,7 +580,7 @@ local function FairyFun(playerent)
     if (FairyType == 1 or FairyType == 5 or FairyType == 3) then -- Main Function
         afktimer = afktimer + 1;        
         if ((AshitaCore:GetMemoryManager():GetCastBar():GetPercent() ~= 1 and Progress ~= (AshitaCore:GetMemoryManager():GetCastBar():GetPercent() * 100)) or
-            playerent.AnimationTime ~= 0 or (playerent.ActionTimer2 ~= 0 and playerent.ActionTimer2 ~= 1800)) then
+            playerent.AnimationTime ~= 0 or (playerent.ActionTimer2 ~= 0 and playerent.ActionTimer2 ~= 1800 and playerent.ActionTimer2 ~= 65535)) then
                 afktimer = 0;  -- All this means is if we are casting, fighting, or moving. Therefore, not AFK.
         end
 
@@ -1554,7 +1554,6 @@ ashita.events.register('d3d_present', 'present_cb', function ()
         ascii.font_u.text = SelfStr;
         ascii.font_q.visible = true;
         ascii.font_q.text = string.format(sResult);
----- PET STUFF
         local pet = GetEntity(playerent.PetTargetIndex);
 
         if (playerent.PetTargetIndex > 0 and pet ~= nil) then ---- PLAYER HAS PET
