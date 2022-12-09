@@ -1,0 +1,16 @@
+The GitHub way is to click the Green Button that says "Code" and then clock Download Zip.
+From there you must extract that folder, and rename it so the "-main" part is not there.
+Place the newly named "ASCII-Joy" folder into that Ashita/addons foler, then add to script.
+
+Easier way is to just clock on the ASCII-Joy versioned .zip, then on the right click "Download".
+Extract the already named "ASCII-Joy" folder and move it into the Ashita/addons folder. Add
+to the script.
+
+Script is located is Ashita/scripts and is called default.txt. You just add the line to the
+other addons "/addon load ASCII-Joy" and you should be all set when you launch the game!
+
+Stay on top of updates at https://github.com/Drusciliana/ASCII-Joy
+
+Thanks again for trying this!
+
+- Drusciliana (D. on Discord, #2154)
