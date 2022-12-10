@@ -580,7 +580,7 @@ local function FairyFun(playerent)
     if (FairyType == 1 or FairyType == 5 or FairyType == 3) then -- Main Function
         afktimer = afktimer + 1;        
         if ((AshitaCore:GetMemoryManager():GetCastBar():GetPercent() ~= 1 and Progress ~= (AshitaCore:GetMemoryManager():GetCastBar():GetPercent() * 100)) or
-            playerent.AnimationTime ~= 0 or (playerent.ActionTimer2 ~= 0 and playerent.ActionTimer2 ~= 1800 and playerent.ActionTimer2 ~= 65535)) then
+            playerent.AnimationTime ~= 0 or (playerent.ActionTimer2 ~= 0 and playerent.ActionTimer2 < 1800)) then
                 afktimer = 0;  -- All this means is if we are casting, fighting, or moving. Therefore, not AFK.
         end
 
@@ -1441,7 +1441,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
             elseif (HeartFrac > .1) then  -- 10 to 33 percent gets 1/4 Heart?
                 HeartNum[value] = 2; -- 1/4 HEART
             else	
-                if(HeartFullTot == 0) then -- To not show some health as zero Hearts when near Death.
+                if(HeartFullTot == 0 and HPValue > 0) then -- To not show some health as zero Hearts when near Death.
                     HeartNum[value] = 2 -- 1/4 Heart
                 else
                     HeartNum[value] = 1 -- EMPTY HEART for less than 10 percent when not near Death.
