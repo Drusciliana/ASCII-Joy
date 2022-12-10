@@ -65,6 +65,7 @@
             [14] = 'Murder-Hobo!';
             [15] = 'Stabby-Stabby!';
             [16] = '*giggles insanely with glee*';
+            [17] = 'Only Solentus can grab me.';
         },
         [4] = { -- Thief Sneak Attack Messages    
             [1] =  'Do it!';
@@ -85,6 +86,7 @@
             [16] = 'Kill it with fire!';
             [17] = 'Hey! Listen!';
             [18] = 'Hey! Listen!';
+            [19] = 'For Solentus!';
         },
         [5] = { -- Death Catch Messages
             [1]  = 'The Dead cannot hurt me!';
@@ -100,6 +102,7 @@
             [11] = 'The flies buzzing your corpse are faster than you.';
             [12] = 'Please. For once. Do something constructive with your time.';
             [13] = 'You were not good at living, not so good at dying either...';
+            [14] = 'Begone, ghost person!';
         },
         [6] = { -- Death Messages
             [1]  = 'I bet that hurt.';
@@ -118,6 +121,7 @@
             [14] = 'Time keeps on slipping, slipping, slipping...';
             [15] = 'Please never volunteer to have to protect me...';
             [16] = '*points at your corpse and laughs maniacally*';
+            [17] = 'No corpse looks better than a Solentus corpse';
         }
     }        
 	return fairy_data;
