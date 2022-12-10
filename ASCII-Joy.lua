@@ -593,7 +593,7 @@ local function FairyFun(playerent)
             end
         end
 
-        if (afktimer > FairyTime or FairyType == 5 or FairyType == 3) then -- Why wait if they're dead?
+        if (afktimer > FairyTime or (FairyType == 5 and afktimer > (FairyTime / 10)) or FairyType == 3) then -- Why wait if they're dead?
             if (afktimer > 60000) then -- We don't know how large the integer can be, so we don't want to exceed it's boundaries.
                 afktimer = FairyTime + 1; -- This way the Fairy  never resets to random location. Will go on forever.
             end
