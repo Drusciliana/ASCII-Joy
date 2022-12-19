@@ -1,12 +1,13 @@
-ASCII-Joy v1.2.0  rel. Dec. 8, 2022
-
-****** Credit and Thanks goes out to:  
-****** Atom0s for his guidance and use of his various addons as examples and inspiration...  
+************************ ASCII-Joy v1.2.2  rel. Dec. 18, 2022
+****** Credit and Thanks goes out to: 
+****** Atom0s for his guidance and use of his various addons as examples and inspiration...
 ****** Vicrelant for the use of the monster data tables from his addon.
 
 * OVERVIEW *
     Relive the glory days before there were graphics, when MUDs were still cool, all while having a somewhat functional UI!
-	(Best used at 1920x1080 resolution, but maybe something else may work for you.)
+	(Best used at 1920x1080 resolution, but maybe something else may work for you.) 
+        -- MOVING THINGS ACTS FUNNY IN WINDOW, PLEASE USE FULLSCREEN OR BORDERLESS WINDOW --
+        -- You often have to click somewhere outside of the intended line to move things. --
 
 * FEATURES *
     Party Window will monitor your party member's HP, MP, TP with HP changing colors depending on how injured they are.
@@ -43,6 +44,7 @@ Here's some Syntax:
         /ASCII-Joy size      Toggles through 3 different size fonts (10, 12, 14).
         /ASCII-Joy offset #  Pixel-shifts the line-spacing (+/-)# pixels (Use if spaces between lines look funny).
         /ASCII-Joy cast      Toggles the Cast Bar.
+        /ASCII-Joy exp       Toggles the Experience Bar.
         /ASCII-Joy party     Toggles the Party Window on and off.
         /ASCII-Joy solo      Toggles seeing yourself in Party Window while solo (Zone Name remains).
         /ASCII-Joy player    Toggles Player Window of your own HP Bar, TP, Mana, Pet info (if you have one).
