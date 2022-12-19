@@ -28,7 +28,7 @@
 
 addon.author  = 'Drusciliana';
 addon.name    = 'ASCII-Joy';
-addon.version = '1.2.0';
+addon.version = '1.2.2';
 addon.desc = 'Relive the glory days before there were graphics, when MUDs were still cool, all while having a somewhat functional UI!';
 addon.link = 'Discord name is just plain old D. (with the period), #2154 if that helps. Stay on top of updates! https://github.com/Drusciliana/ASCII-Joy';
 
@@ -50,11 +50,12 @@ T{
     monabov =   true,
     monsbab =   false,		
     playwin =   true,
+    exp =       false,
     zilda =     false,
     grow =      true,
     cast =      true,
     fairy =     true,
-    offset =    0
+    offset =    -4
     },
     partyfont = T{
         font_family = "Consolas",
@@ -76,6 +77,20 @@ T{
         position_x = 500, 		
         position_y = 700,
         font_height = 10,
+        color = 0xffffffff,
+        bold = true,
+        locked = false,
+        text = '',
+        background = T{
+            color = 0xff000000,
+            visible = true
+        }
+    },
+    expfont = T{
+        font_family = "Consolas",
+        position_x = 0, 		
+        position_y = 900,
+        font_height = 12,
         color = 0xffffffff,
         bold = true,
         locked = false,
@@ -223,6 +238,7 @@ local jobs = {
 
 local ascii = T{
     font_c = nil,
+    font_d = nil,
     font_e = nil,
     font_l = nil,
     font_m = nil,
@@ -251,6 +267,9 @@ local function update_settings(s)
 
     if (ascii.font_c ~= nil) then
         ascii.font_c:apply(ascii.settings.castfont);
+    end
+    if (ascii.font_d ~= nil) then
+        ascii.font_d:apply(ascii.settings.expfont);
     end
     if (ascii.font_e ~= nil) then
         ascii.font_e:apply(ascii.settings.partyfont);
@@ -316,10 +335,12 @@ local function save_everything() -- Need this to save window locations, so not t
     ascii.settings.selffont.position_x = ascii.font_q.position_x;
     ascii.settings.partyfont.position_x = ascii.font_e.position_x;
     ascii.settings.monsterfont.position_x = ascii.font_m.position_x;
+    ascii.settings.expfont.position_x = ascii.font_d.position_x;    
     ascii.settings.castfont.position_y = ascii.font_c.position_y; 
     ascii.settings.selffont.position_y = ascii.font_q.position_y; 
     ascii.settings.partyfont.position_y = ascii.font_e.position_y;
     ascii.settings.monsterfont.position_y = ascii.font_m.position_y;
+    ascii.settings.expfont.position_y = ascii.font_d.position_y;    
     settings.save();
 end
 
@@ -387,6 +408,8 @@ ashita.events.register('load', 'load_cb', function ()
     end
 -- Cast Bar label
     ascii.font_c = fonts.new(ascii.settings.castfont);
+-- Exp Bar label
+    ascii.font_d = fonts.new(ascii.settings.expfont);
 -- Monster Window labels
     ascii.font_l = fonts.new(ascii.settings.monsterfont);
     ascii.font_m = fonts.new(ascii.settings.monsterfont);
@@ -431,6 +454,10 @@ ashita.events.register('unload', 'unload_cb', function ()
     if (ascii.font_c ~= nil) then
 	    ascii.font_c:destroy();
 	    ascii.font_c = nil;
+    end
+    if (ascii.font_d ~= nil) then
+	    ascii.font_d:destroy();
+	    ascii.font_d = nil;
     end
     if (ascii.font_e ~= nil) then
 	    ascii.font_e:destroy();
@@ -525,9 +552,9 @@ end);
 
 local function FairyCatch(type, X, Y)
     FairyMessage = GetFairyMessage(type);  
-    local NewFairyPosX = 0;
-    local NewFairyPosY = 0; 
-    if (type == 1 or type == 5) then -- Make Idle  and Death Catch only teleport it around.
+    local NewFairyPosX = X;
+    local NewFairyPosY = Y; 
+    if (type == 1 or type == 5) then -- Make Idle  and Death Catch only teleport it around randomly.
         NewFairyPosX = math.random(100, 1800);
         NewFairyPosY = math.random(100, 900);
     elseif (type == 3) then
@@ -713,7 +740,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
     local offset = ascii.settings.options.offset;
     local playerfound = 99;
     local solo = 0; 
-    for x = 0, 5 do --** Alliance may be different
+    for x = 0, 5 do --** Alliance may be different -- Need to know playerfound, even solo. Weird. Don't put this in party loop.
         if(player ~= nil and playerent ~= nil) then
             if(playerent.TargetIndex == party:GetMemberTargetIndex(x)) then
 	        playerfound = x;
@@ -742,6 +769,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
             Fairy[x].visible = false;
         end
         ascii.font_c.visible = false;
+        ascii.font_d.visible = false;        
         ascii.font_e.visible = false;
         ascii.font_l.visible = false;
         ascii.font_m.visible = false;
@@ -757,17 +785,16 @@ ashita.events.register('d3d_present', 'present_cb', function ()
         return;
     else
         ascii.font_c.locked = false; --
+        ascii.font_d.locked = false; --
         ascii.font_e.locked = false; -- Seem to have to have these here.
         ascii.font_m.locked = false; -- Declaring these (not true) doesn't work, from the settings making all set true.
         ascii.font_q.locked = false; -- Oh well.
     end 
 		  -- *** START HERE ***
     tick = tick + 1;
-    if (tick >= 30) then
+    if (tick >= 30) then -- Not sure why I use greater than. Maybe bad feeling tick will increment too soon one day. Haha.
+        CheckLock = false; -- We don't want to flood the server too much, only unlock the Check every 30 renders.
        	tick = 0;
-    end
-	if (tick == 0) then -- We don't want to flood the server too much, only unlock the Check every 30 renders.
-	    CheckLock = false;
     end
 
     if (ascii.settings.options.fairy == true and ascii.settings.options.zilda == true) then
@@ -819,6 +846,23 @@ ashita.events.register('d3d_present', 'present_cb', function ()
     end
 -------- END Cast Bar
 
+-------- Experience Bar
+    if (ascii.settings.options.exp == true) then     --  100 Squares? VVV  VVV
+        if (player ~= nil) then
+            local ExpStr = '||c00000000|____________________________________________________________________________________________________|r|'
+            local ExpNeed = player:GetExpNeeded();
+            local ExpCurr = player:GetExpCurrent();
+            local ExpPer = 100 * (ExpCurr/ExpNeed);
+            local ExpChk = math.floor(ExpPer / (100/100)); -- DENOMINATOR OF FRACTION IS HOW MANY SQUARES WE USE FOR BAR!!!!
+
+            ExpStr = string.gsub(ExpStr,'_','|cffffff00|#|c00000000|',ExpChk);
+            ascii.font_d.visible = true;
+            ascii.font_d.font_height = 12;
+            ascii.font_d.text = ExpStr;
+        end
+    end
+-------- EBD Experience Bar
+
 -------- Party Window
     if (ascii.settings.options.party == true) then
         local cury = 0;
@@ -835,14 +879,19 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                 ascii.font_g[x].visible = false;
                 ascii.font_h[x].visible = false;
             else
-                if (party:GetMemberZone(playerfound) == party:GetMemberZone(x)) then
+                if (party:GetMemberZone(playerfound) == party:GetMemberZone(x)) then -- and (party:GetMemberMainJob(x) == nil or party:GetMemberMainJob(x) == 0 or party:GetMemberMainJob(x) > 22)) then
                     elsewhere = false;  
                 end
         ----- Setup Party Window (NEATEST I THINK I CAN MAKE IT, WORKS BEST ON 10 POINT FONTS at 1920x1080)
 	    ----- "cur" is Health, "new" is Mana, "spc" is blank line between party members
-                spcy = ascii.font_e.GetPositionY() - (3 * x * (fontsize - offset));	    
+                if (x == 0) then
+                    spcy = ascii.font_e.GetPositionY();
+                else
+                    spcy = cury - fontsize - offset;
+                end
                 newy = spcy - fontsize - offset;
-                cury = newy - fontsize - offset;
+                cury = newy - fontsize - offset;               
+                
                 ascii.font_f[x].position_x = ascii.font_e.position_x;
                 ascii.font_f[x].position_y = cury;
 
@@ -867,9 +916,15 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                     local ATA = target:GetActionTargetActive();
                     local ATSI = target:GetActionTargetServerId();
                     local TargetID = target:GetTargetIndex(0);
-                    if ((ID == TargetID or (party:GetMemberServerId(x) == ATSI and ATA == 1)) and elsewhere == false) then -- Have seen far away people with purple names.
-                        TarStar = '|cffff69B4|*';
-                        NameColor = '|cff7f2be2|';
+                    if ((ID == TargetID or (party:GetMemberServerId(x) == ATSI and ATA == 1)) and elsewhere == false) then -- Have seen far away people with purple names. (change to all ANDS?)
+                        NameColor = '|cff00ffff|';
+                        TarStar = ' ';
+                        if (party:GetMemberServerId(x) == ATSI and ATA == 1) then
+                            NameColor = '|cff7f2be2|';
+                            TarStar = '|cffff69B4|*';
+                        elseif (ID == TargetID) then
+                            NameColor = '|cff7f2be2|';
+                        end
                     else
                         NameColor = '|cff00ffff|';
                         TarStar = ' ';
@@ -928,7 +983,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 
     ---- Get Party Members' Job(s)
                 if (party:GetMemberMainJob(x) == nil or party:GetMemberMainJob(x) == 0 or party:GetMemberMainJob(x) > 22) then
-                    TJob = 'NPC';
+                    TJob = 'XXX/XXX';
                 else	
                     MJob = jobs[party:GetMemberMainJob(x)];
                     if (party:GetMemberSubJobLevel(x) ~= nil and party:GetMemberSubJobLevel(x) > 0 and party:GetMemberSubJob(x) ~= nil) then
@@ -1002,7 +1057,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                         ascii.font_f[x].background.color = ascii.settings.partyfont.background.color;
                     end
 
-                    if (elsewhere == false) then  -- Try to put in Zone Name for far away friends
+                    if (elsewhere == false and party:GetMemberMainJob(x) ~= nil and party:GetMemberMainJob(x) ~= 0 and party:GetMemberMainJob(x) <= 22) then  -- Try to put in Zone Name for far away friends
                         Output = (TarStar..NameColor..Name..leadstar..'|'..hResult..'||cff00ff00|'..HealthStr);
                         OutTwo = (TPColor..'     '..TPValue..'  '..mResult..'|cffff69b4|'..ManaStr..' |cffffffff|'..TJob);
                         ascii.font_f[x].text = tostring(Output);
@@ -1483,6 +1538,11 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 
                 Sword[SwordNum].position_x = ascii.font_q.position_x + 85 + (8 * 48); -- Put it under the 8th Heart Container?
                 Sword[SwordNum].position_y = ascii.font_q.position_y + 48;
+                if (ascii.settings.selffont.font_height == 14) then
+                    Sword[SwordNum].position_x = Sword[SwordNum].position_x + 48; 
+                elseif (ascii.settings.selffont.font_height == 10) then
+                    Sword[SwordNum].position_x = Sword[SwordNum].position_x - 96;
+                end                        
                 Sword[SwordNum].locked = true;
                 Sword[SwordNum].visible = true;
             end
@@ -1493,15 +1553,21 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                 sResult = ' LIFE ';
             end   
 
-            ascii.font_q.font_height  = 2 * selffontsize;    -- TWO SETS OF THESE LINE PLACEMENTS, ONE FOR HEART ONE FOR REGULAR. THIS IS HEART.
+            ascii.font_q.font_height  = 30; --[[2 * selffontsize;]]    -- TWO SETS OF THESE LINE PLACEMENTS, ONE FOR HEART ONE FOR REGULAR. THIS IS HEART.
             ascii.font_s.position_x = ascii.font_r.position_x;
             ascii.font_s.position_y = ascii.font_r.position_y + (selffontsize * 2) + offset;
             ascii.font_t.position_x = ascii.font_s.position_x;
             ascii.font_t.position_y = ascii.font_s.position_y + (selffontsize * 2) + offset;
+            local push = 0;
+            if (ascii.font_r.font_height == 10) then
+                push = 4;
+            elseif (ascii.font_r.font_height == 14) then
+                push = -3;
+            end
             ascii.font_r.position_x = ascii.font_q.position_x;
-            ascii.font_r.position_y = ascii.font_q.position_y + (selffontsize * 2) + offset + 28;
+            ascii.font_r.position_y = push + ascii.font_q.position_y + (selffontsize * 2) + offset + 28;
             ascii.font_u.position_x = ascii.font_q.position_x;
-            ascii.font_u.position_y = ascii.font_q.position_y + (selffontsize * 2) + offset + 28;
+            ascii.font_u.position_y = push + ascii.font_q.position_y + (selffontsize * 2) + offset + 28;
 	                                                                                                               --VV VV VV Remove TP for now for the sword, and add 4 spaces.
             SelfStr = SelfStr..SelfHPStr..' / '..SelfHPMStr..'   |cffff40b0|'..SelfMPStr..' / '..SelfMPMStr..'     '..--[[SelfTPStr..' ']]'     '; 
         else	-------------- THIS IS 'Q' LINE?
@@ -1554,6 +1620,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
         ascii.font_u.text = SelfStr;
         ascii.font_q.visible = true;
         ascii.font_q.text = string.format(sResult);
+
         local pet = GetEntity(playerent.PetTargetIndex);
 
         if (playerent.PetTargetIndex > 0 and pet ~= nil) then ---- PLAYER HAS PET
@@ -1632,6 +1699,7 @@ local function print_help(isError)
         { '/ASCII-Joy size     ', 'Toggles through 3 different size fonts (10, 12, 14).' },
         { '/ASCII-Joy offset # ', 'Pixel-shifts the line-spacing (+/-)# pixels (Use if spaces between lines look funny)' },
         { '/ASCII-Joy cast     ', 'Toggles the Cast Bar.' },
+        { '/ASCII-Joy exp      ', 'Toggles the Experience Bar.'},
         { '/ASCII-Joy party    ', 'Toggles the Party Window on and off.' },
         { '/ASCII-Joy solo     ', 'Toggles seeing yourself in Party Window while solo (Zone Name remains).' },
         { '/ASCII-Joy player   ', 'Toggles Player Window of your own HP Bar, TP, Mana, Pet info (if you have one).' },
@@ -1706,6 +1774,18 @@ ashita.events.register('command', 'command_cb', function (ee)
             print(chat.header(addon.name):append(chat.message('Cast Bar ENABLED.')));
         elseif(ascii.settings.options.cast == false) then
             print(chat.header(addon.name):append(chat.message('Cast Bar DISABLED.')));
+        end
+        save_everything();
+        return;
+    end
+
+    if (#args == 2 and args[2]:any('exp')) then
+        ascii.settings.options.exp = not ascii.settings.options.exp;
+        if(ascii.settings.options.exp == true) then
+            print(chat.header(addon.name):append(chat.message('Experience Bar ENABLED.')));
+        elseif(ascii.settings.options.exp == false) then
+            print(chat.header(addon.name):append(chat.message('Experience Bar DISABLED.')));
+            ascii.font_d.visible = false;
         end
         save_everything();
         return;
