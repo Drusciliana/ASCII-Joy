@@ -7,7 +7,9 @@
 * OVERVIEW *
     Relive the glory days before there were graphics, when MUDs were still cool, all while having a somewhat functional UI!
 	(Best used at 1920x1080 resolution, but maybe something else may work for you.) 
+	
         -- MOVING THINGS ACTS FUNNY IN WINDOW, BEST USED ON FULLSCREEN OR BORDERLESS WINDOW --
+	
         -- You often have to click somewhere outside of the intended line to move things. --
 
 * FEATURES *
