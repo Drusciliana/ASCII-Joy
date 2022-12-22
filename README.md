@@ -9,8 +9,7 @@
 	(Best used at 1920x1080 resolution, but maybe something else may work for you.) 
 	
         -- MOVING THINGS ACTS FUNNY IN WINDOW, BEST USED ON FULLSCREEN OR BORDERLESS WINDOW --
-	
-        -- You often have to click somewhere outside of the intended line to move things. --
+	  -- You often have to click somewhere outside of the intended line to move things. --
 
 * FEATURES *
     Party Window will monitor your party member's HP, MP, TP with HP changing colors depending on how injured they are.
