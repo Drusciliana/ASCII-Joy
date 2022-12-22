@@ -642,7 +642,7 @@ local function FairyFun(playerent)
 
             FairySafeTime = FairySafeTime + 1;
             if (FairyType == 3) then
-                Fairytime = Fairytime / 2;
+                FairyTime = FairyTime / 2;
             end
             if (FairySafeTime >= (FairyTime / 10)) then
                 FairySafeTime = 0;
