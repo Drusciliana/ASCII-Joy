@@ -28,7 +28,7 @@
 
 addon.author  = 'Drusciliana';
 addon.name    = 'ASCII-Joy';
-addon.version = '1.2.2';
+addon.version = '1.2.4';
 addon.desc = 'Relive the glory days before there were graphics, when MUDs were still cool, all while having a somewhat functional UI!';
 addon.link = 'Discord name is just plain old D. (with the period), #2154 if that helps. Stay on top of updates! https://github.com/Drusciliana/ASCII-Joy';
 
@@ -712,7 +712,11 @@ local function FairyFun(playerent)
                 ascii.font_v.right_justified = true;
                 ascii.font_v.position_x = Fairy[1].position_x;
             end
-            ascii.font_v.position_y = Fairy[1].position_y - 30;
+            if (Fairy[1].position_y < 80) then -- Keep the text on the screen.
+                ascii.font_v.position_y = Fairy[1].position_y + 30;
+            else
+                ascii.font_v.position_y = Fairy[1].position_y - 30;
+            end
             ascii.font_v.background.color = 0xffffffff;
             ascii.font_v.background.visible = true;
             ascii.font_v.visible = true;
@@ -738,20 +742,11 @@ ashita.events.register('d3d_present', 'present_cb', function ()
     local playerent = GetPlayerEntity(); 
 
     local offset = ascii.settings.options.offset;
-    local playerfound = 99;
+    -- local playerfound = 0; -- was 99
     local solo = 0; 
-    for x = 0, 5 do --** Alliance may be different -- Need to know playerfound, even solo. Weird. Don't put this in party loop.
-        if(player ~= nil and playerent ~= nil) then
-            if(playerent.TargetIndex == party:GetMemberTargetIndex(x)) then
-	        playerfound = x;
-            end    
-        end
-        if (party:GetMemberIsActive(x) == 1) then
-            solo = solo + 1;
-        end
-    end
+
 		--** Hopefully cleans and fixes everything up while zoning or loading
-    if (player:GetMainJobLevel() == 0) then 
+    if (player:GetMainJobLevel() == 0 or player == nil or playerent == nil) then 
         for x = 0, 5 do --** May be different for alliance.
            ascii.font_f[x].visible = false;
            ascii.font_g[x].visible = false;
@@ -797,11 +792,17 @@ ashita.events.register('d3d_present', 'present_cb', function ()
        	tick = 0;
     end
 
+    for x = 0, 5 do --** Alliance may be different 
+        if (party:GetMemberIsActive(x) == 1) then
+            solo = solo + 1;
+        end
+    end
+
     if (ascii.settings.options.fairy == true and ascii.settings.options.zilda == true) then
         FairyFun(playerent);
     end 
 				--** Changing zones? Pull a new data file
-    ZoneIDStart = party:GetMemberZone(playerfound);
+    ZoneIDStart = party:GetMemberZone(0); -- 0 was playerfound
 	----** WE NEED DATAFILES EVEN WITHOUT MONSTER WINDOW TO COMPARE NPC's, MONSTERS, OBJECTS, PLAYERS, etc. FOR TARGET WINDOW! MAYBE?
 	----** OR IN CASE MONSTER WINDOW IS TURNED ON BEFORE THEY ZONE, WHEN LASTZONE AND ZONEIDSTART WOULD BE THE SAME ANYWAY.
     if (ZoneIDStart > 0 and LastZone ~= ZoneIDStart) then  -- We're not in some limbo zone, and we're in a different zone than before.
@@ -874,12 +875,13 @@ ashita.events.register('d3d_present', 'present_cb', function ()
         local elsewhere = true;
         for x = 0, 5 do  
             elsewhere = true;
+    
             if (party:GetMemberIsActive(x) == 0) then
                 ascii.font_f[x].visible = false;
                 ascii.font_g[x].visible = false;
                 ascii.font_h[x].visible = false;
             else
-                if (party:GetMemberZone(playerfound) == party:GetMemberZone(x)) then -- and (party:GetMemberMainJob(x) == nil or party:GetMemberMainJob(x) == 0 or party:GetMemberMainJob(x) > 22)) then
+                if (party:GetMemberZone(0) == party:GetMemberZone(x)) then -- 0 was playerfound
                     elsewhere = false;  
                 end
         ----- Setup Party Window (NEATEST I THINK I CAN MAKE IT, WORKS BEST ON 10 POINT FONTS at 1920x1080)
@@ -915,19 +917,18 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                     local ID = party:GetMemberTargetIndex(x);
                     local ATA = target:GetActionTargetActive();
                     local ATSI = target:GetActionTargetServerId();
-                    local TargetID = target:GetTargetIndex(0);
+                    local TargetID = target:GetTargetIndex(0); -- 0 is target, 1 is subtarget?
+                    NameColor = '|cff00ffff|';
+                    TarStar = ' ';
                     if ((ID == TargetID or (party:GetMemberServerId(x) == ATSI and ATA == 1)) and elsewhere == false) then -- Have seen far away people with purple names. (change to all ANDS?)
-                        NameColor = '|cff00ffff|';
-                        TarStar = ' ';
-                        if (party:GetMemberServerId(x) == ATSI and ATA == 1) then
-                            NameColor = '|cff7f2be2|';
-                            TarStar = '|cffff69B4|*';
+                        if (party:GetMemberServerId(x) == ATSI and ATA == 1) then -- some reason changing combat targets triggers purple on player.
+                            if(target:GetTargetIndex(1) or target:GetIsSubTargetActive() == 1) then -- Not sure why I made that a boolean? Forgot.
+                                NameColor = '|cffaf4be2|';
+                                TarStar = '|cffff69B4|*';
+                            end
                         elseif (ID == TargetID) then
-                            NameColor = '|cff7f2be2|';
+                            NameColor = '|cff0000ff|';
                         end
-                    else
-                        NameColor = '|cff00ffff|';
-                        TarStar = ' ';
                     end
                 end
    	---- Find Color for HP Bar and Overall HP Output
@@ -1031,8 +1032,8 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                     leadstar = '|r ';
                 end
                 
-                if (solo <= 1 and ascii.settings.options.solo == true) then
-                    OutThr = AshitaCore:GetResourceManager():GetString('zones.names', party:GetMemberZone(playerfound));;
+                if (solo <= 1 and ascii.settings.options.solo == true) then -- Making text for font_e, the movable zone name line.
+                    OutThr = AshitaCore:GetResourceManager():GetString('zones.names', party:GetMemberZone(0)); -- 0 was playerfound
                     while OutThr:len() < 35 do
                         OutThr = " "..OutThr;
                     end
@@ -1048,7 +1049,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                     ascii.font_g[x].visible = true;
                     ascii.font_e.visible = true;
                     if (HPValue <= 33 and elsewhere == false) then
-                        if (tick >= 15) then
+                        if (tick >= 15 and party:GetMemberMainJob(x) ~= nil and party:GetMemberMainJob(x) <= 22) then
                             ascii.font_f[x].background.color = 0x5fff0000;
                         else
                             ascii.font_f[x].background.color = ascii.settings.partyfont.background.color;
@@ -1057,7 +1058,10 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                         ascii.font_f[x].background.color = ascii.settings.partyfont.background.color;
                     end
 
-                    if (elsewhere == false and party:GetMemberMainJob(x) ~= nil and party:GetMemberMainJob(x) ~= 0 and party:GetMemberMainJob(x) <= 22) then  -- Try to put in Zone Name for far away friends
+                    if (elsewhere == false and party:GetMemberMainJob(x) ~= nil) then  -- Try to put in Zone Name for far away friends
+                        if (party:GetMemberMainJob(x) == 0 or party:GetMemberMainJob(x) > 22) then
+                            TJob = ' ANON? ';
+                        end
                         Output = (TarStar..NameColor..Name..leadstar..'|'..hResult..'||cff00ff00|'..HealthStr);
                         OutTwo = (TPColor..'     '..TPValue..'  '..mResult..'|cffff69b4|'..ManaStr..' |cffffffff|'..TJob);
                         ascii.font_f[x].text = tostring(Output);
@@ -1078,8 +1082,8 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                     end	    
                 end
 
-                if (x == playerfound) then      -- We only want the bottom line to be moveable: "e"
-                    OutThr = AshitaCore:GetResourceManager():GetString('zones.names', party:GetMemberZone(playerfound));;
+                if (x == 0) then      -- We only want the bottom line to be moveable: "e" -- was playerfound, maybe make it 0
+                    OutThr = AshitaCore:GetResourceManager():GetString('zones.names', party:GetMemberZone(0)); -- 0 was playerfound
                     while OutThr:len() < 35 do
                         OutThr = " "..OutThr;
                     end
@@ -1090,7 +1094,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                     ascii.font_e.text = OutThr;
                 else
                     OutThr = '                                     ';
-                    ascii.font_e.visible = true; 
+                    ascii.font_e.visible = true; -- Don't need to have a text set for font_e since it should have been set when it was 0.
                     ascii.font_h[x].visible = true;
                     ascii.font_h[x].text = tostring(OutThr);
                 end
@@ -1241,8 +1245,8 @@ ashita.events.register('d3d_present', 'present_cb', function ()
         else
             ------ SNEAK ATTACK FUNCTION!!!
             if (player:GetMainJob() == 6 or player:GetSubJob() == 6) then
-                local pX = AshitaCore:GetMemoryManager():GetEntity():GetLocalPositionX(party:GetMemberTargetIndex(playerfound));
-                local pY = AshitaCore:GetMemoryManager():GetEntity():GetLocalPositionY(party:GetMemberTargetIndex(playerfound));
+                local pX = AshitaCore:GetMemoryManager():GetEntity():GetLocalPositionX(party:GetMemberTargetIndex(0)); -- 0 was playerfound
+                local pY = AshitaCore:GetMemoryManager():GetEntity():GetLocalPositionY(party:GetMemberTargetIndex(0)); -- 0 was playerfound
                 local mX = AshitaCore:GetMemoryManager():GetEntity():GetLocalPositionX(TarID);
                 local mY = AshitaCore:GetMemoryManager():GetEntity():GetLocalPositionY(TarID);
                 local MobHead = AshitaCore:GetMemoryManager():GetEntity():GetLocalPositionYaw(TarID) * (180 / math.pi);
@@ -1253,7 +1257,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                 local Dist = math.sqrt(tarmob.Distance);  
                 local relX = (mX - pX); -- puts pX at the center of unit circle? (px-mx) seems to give relative angle of me in relation to it
                 local relY = (mY - pY); -- REMEMBER THE GAME LOOKS AT INCREASING Y TO GO DOWN. LIKE MONITOR COORDS START IN UPPER LEFT CORNER.
-                local Bearing = math.atan2(relY,relX) * (-180 / math.pi); -- Arctangent? We back in high schhol? Brings back bad memories. Haha!
+                local Bearing = math.atan2(relY,relX) * (-180 / math.pi); -- Arctangent? We back in high school? Brings back bad memories. Haha!
 
                 if (MobHead > 360) then
                     MobHead = MobHead - 360;
