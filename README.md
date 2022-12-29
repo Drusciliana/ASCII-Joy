@@ -1,6 +1,6 @@
-************************ ASCII-Joy v1.3.0  rel. Dec. 28, 2022
-****** Credit and Thanks goes out to: 
-****** Atom0s for his guidance and use of his various addons as examples and inspiration...
+************************ ASCII-Joy v1.3.0  rel. Dec. 28, 2022      
+****** Credit and Thanks goes out to:        
+****** Atom0s for his guidance and use of his various addons as examples and inspiration...        
 ****** Vicrelant for the use of the monster data tables from his addon.
 
 * 1.3.0 Changes * - Added Alliance Windows (read warning). Pet's target tracked if it differs than your own. 
