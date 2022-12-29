@@ -1,21 +1,23 @@
-************************ ASCII-Joy v1.2.4  rel. Dec. 23, 2022
-
-****** Credit and Thanks goes out to:    
-****** Atom0s for his guidance and use of his various addons as examples and inspiration...    
+************************ ASCII-Joy v1.3.0  rel. Dec. 28, 2022
+****** Credit and Thanks goes out to: 
+****** Atom0s for his guidance and use of his various addons as examples and inspiration...
 ****** Vicrelant for the use of the monster data tables from his addon.
+
+* 1.3.0 Changes * - Added Alliance Windows (read warning). Pet's target tracked if it differs than your own. 
+* Known Issues * - Party Members set to Anonymous make their stats look weird, or dead, or faraway sometimes.
 
 * OVERVIEW *
     Relive the glory days before there were graphics, when MUDs were still cool, all while having a somewhat functional UI!
 	(Best used at 1920x1080 resolution, but maybe something else may work for you.) 
-	
-      -- MOVING THINGS ACTS FUNNY IN WINDOW, BEST USED ON FULLSCREEN OR BORDERLESS WINDOW --
-	  -- You often have to click somewhere outside of the intended line to move things. --
+        -- MOVING THINGS ACTS FUNNY IN WINDOW, PLEASE USE FULLSCREEN OR BORDERLESS WINDOW --
+        -- You often have to click somewhere outside of the intended line to move things. --
 
 * FEATURES *
     Party Window will monitor your party member's HP, MP, TP with HP changing colors depending on how injured they are.
 	TP will change color when it gets over 1000. MP will get brighter when the MP gauge is full. The name of the person
 	in your party you may be trying to cast on will also change color. The Leader of the Party is also noted. Also now
-        tells you the name of the zone someone is in if they aren't in your zone.
+        tells you the name of the zone someone is in if they aren't in your zone. Now also tracks Alliance Members. This is
+        toggleable due to the fact it is extremely cumbersome and may cause a dramatic FPS loss for some. Sorry. Caveat Empor.
 
     Monster Window tracks the HP percentage, mob class, aggro types, weaknesses, and your current sub-target.
         -- Now incorporates the "checker" addon, showing live data of Monster Level, Defense, Evasion modifiers 
@@ -26,7 +28,8 @@
                 within 3 yalms.
 
     Self Window monitors your own HP, MP, TP with HP changing colors depending how injured you are. If you have a pet, then
-	it will also monitor the Pet's HP, MP, TP with both TP gauges changing colors over 1000.
+	it will also monitor the Pet's HP, MP, TP with both TP gauges changing colors over 1000. Now also tracks the pet's
+        target if it differs from your own.
 
     Can have your Health Bar and TP look like Icons from the ancient game "The Myth of Zilda(tm)"!
 
@@ -48,6 +51,7 @@ Here's some Syntax:
         /ASCII-Joy cast      Toggles the Cast Bar.
         /ASCII-Joy exp       Toggles the Experience Bar.
         /ASCII-Joy party     Toggles the Party Window on and off.
+        /ASCII-Joy alliance  Toggles Alliance Windows (WILL COST SOME FPS, FOR SURE).
         /ASCII-Joy solo      Toggles seeing yourself in Party Window while solo (Zone Name remains).
         /ASCII-Joy player    Toggles Player Window of your own HP Bar, TP, Mana, Pet info (if you have one).
         /ASCII-Joy zilda     Toggles Health bar from ASCII to Hearts from "The Myth of Zilda(tm)"!
