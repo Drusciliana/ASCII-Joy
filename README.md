@@ -4,6 +4,7 @@
 ****** Vicrelant for the use of the monster data tables from his addon.
 
 * 1.3.0 Changes * - Added Alliance Windows (read warning). Pet's target tracked if it differs than your own. 
+* 1.3.1 Fix * - Fixed issue with losing combat animations (very odd) when using a pet. Lightened pet HP bar.
 * Known Issues * - Party Members set to Anonymous make their stats look weird, or dead, or faraway sometimes.
 
 * OVERVIEW *
