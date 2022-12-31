@@ -28,7 +28,7 @@
 
 addon.author  = 'Drusciliana';
 addon.name    = 'ASCII-Joy';
-addon.version = '1.3.0';
+addon.version = '1.3.1';
 addon.desc = 'Relive the glory days before there were graphics, when MUDs were still cool, all while having a somewhat functional UI!';
 addon.link = 'Discord name is just plain old D. (with the period), #2154 if that helps. Stay on top of updates! https://github.com/Drusciliana/ASCII-Joy';
 
@@ -1959,7 +1959,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
             local petname = pet.Name;
             local pettp = player:GetPetTP();
             local petmp = player:GetPetMPPercent();
-            local pResult = '{|cff49497e|__________________________________________________|cffffffff|}'; 
+            local pResult = '{|cff6969be|__________________________________________________|cffffffff|}'; 
             local PHValue = pet.HPPercent;
             local PHCheck = math.floor(PHValue / (100 / 50));
             local tResult  = '|cffffffff|{____________________|cffffffff|}';
@@ -2478,8 +2478,7 @@ ashita.events.register('packet_in', 'packet_in_cb', function (e) -- Checker and 
             PetTargetsID = ashita.bits.unpack_be(e.data_modified:totable(), 0x96, 0x20);
             return;
         end
-        -- Mark the packet as handled..
-        e.blocked = true;
+
         return;
     end
     
@@ -2495,8 +2494,7 @@ ashita.events.register('packet_in', 'packet_in_cb', function (e) -- Checker and 
         if (owner == player.ServerId) then
             PetTargetsID = struct.unpack('I', e.data_modified, 0x14 + 0x01);
         end
-        -- Mark the packet as handled..
-        e.blocked = true;
+
         return;
     end
 end);
