@@ -1,10 +1,11 @@
-************************ ASCII-Joy v1.3.1  rel. Dec. 31, 2022      
+************************ ASCII-Joy v1.3.2  rel. Jan. 1, 2023      
 ****** Credit and Thanks goes out to:        
 ****** Atom0s for his guidance and use of his various addons as examples and inspiration...        
 ****** Vicrelant for the use of the monster data tables from his addon.
 
-* 1.3.0 Changes * - Added Alliance Windows (read warning). Pet's target tracked if it differs than your own. 
+* 1.3.0 Additionss * - Added Alliance Windows (read warning). Pet's target tracked if it differs than your own. 
 * 1.3.1 Fix * - Fixed issue with losing combat animations (very odd) when using a pet. Lightened pet HP bar.
+* 1.3.2 Change * - Target/Sub-Target Name (the green/purple italic name), is now movable (by popular demand).
 * Known Issues * - Party Members set to Anonymous make their stats look weird, or dead, or faraway sometimes.
 
 * OVERVIEW *
@@ -61,14 +62,12 @@ Here's some Syntax:
         /ASCII-Joy monster   Toggles the Monster Health/Sub-Target Window
         /ASCII-Joy mon-pos   Toggles Monster info Above/Below their Health Bar.
         /ASCII-Joy mon-info  Toggles Aggro/Weak info. Not live info, pulled from file.
-        /ASCII-Joy mon-sub   Toggles Target/Sub Name Above/Below the Monster Health Bar.
-                             If you have no monster targetted, this is the name of who/what
-                             you have targetted. If you do have a monster targetted, this is
-                             who/what you are trying to use a spell/skill/item/whatever on.
 	
         To move the Cast Bar, Shift-LeftClick-Drag the bar around while casting (sorry, only way to see it).
+        To move the Experience Bar, Shift-LeftClick-Drag the Bar itself.
         To move the Party Window, Shift-LeftClick-Drag the line with Zone Name.
         To move the Monster Window, Shift-LeftClick-Drag the line with the Monster Health.
+        To move the Target/Sub-Target Name, Shift-LeftClick-Drag the italicized Name.
         To move the Player Window, Shift-LeftClick-Drag the line with your own Health.
         If you have Life Hearts from "The Myth of Zilda(tm)", Shift-LeftClick-Drag the word "LIFE".
         You must use "/ASCII-Joy save", change zones, or unload/load the addon to save Window positions.
