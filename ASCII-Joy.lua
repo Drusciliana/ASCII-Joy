@@ -28,7 +28,7 @@
 
 addon.author  = 'Drusciliana';
 addon.name    = 'ASCII-Joy';
-addon.version = '1.3.1';
+addon.version = '1.3.2';
 addon.desc = 'Relive the glory days before there were graphics, when MUDs were still cool, all while having a somewhat functional UI!';
 addon.link = 'Discord name is just plain old D. (with the period), #2154 if that helps. Stay on top of updates! https://github.com/Drusciliana/ASCII-Joy';
 
@@ -48,7 +48,6 @@ T{
     monster =   true, 		
     moninfo =   false, 
     monabov =   true,
-    monsbab =   false,		
     playwin =   true,
     exp =       false,
     zilda =     false,
@@ -134,6 +133,21 @@ T{
         font_family = "Consolas",  		
         position_x = 800, 		
         position_y = 200,
+        font_height = 10,
+        color = 0xffffffff,
+        bold = true,
+        text = '',
+        right_justified = true,
+        locked = true,
+        background = T{
+	        color = 0xff000000,
+            visible = true
+        }
+    },
+    subtarfont = T{
+        font_family = "Consolas",  		
+        position_x = 800, 		
+        position_y = 250,
         font_height = 10,
         color = 0xffffffff,
         bold = true,
@@ -333,7 +347,7 @@ local function update_settings(s)
         ascii.font_o:apply(ascii.settings.monsterfont);
     end
     if (ascii.font_p ~= nil) then
-        ascii.font_p:apply(ascii.settings.monsterfont);
+        ascii.font_p:apply(ascii.settings.subtarfont);
     end
     if (ascii.font_q ~= nil) then
         ascii.font_q:apply(ascii.settings.selffont);
@@ -386,6 +400,7 @@ local function save_everything() -- Need this to save window locations, so not t
     ascii.settings.selffont.position_x = ascii.font_q.position_x;
     ascii.settings.partyfont.position_x = ascii.font_e.position_x;
     ascii.settings.monsterfont.position_x = ascii.font_m.position_x;
+    ascii.settings.subtarfont.position_x = ascii.font_p.position_x;
     ascii.settings.expfont.position_x = ascii.font_d.position_x;
     ascii.settings.all1font.position_y = ascii.font_a.position_y
     ascii.settings.all2font.position_y = ascii.font_b.position_y    
@@ -393,6 +408,7 @@ local function save_everything() -- Need this to save window locations, so not t
     ascii.settings.selffont.position_y = ascii.font_q.position_y; 
     ascii.settings.partyfont.position_y = ascii.font_e.position_y;
     ascii.settings.monsterfont.position_y = ascii.font_m.position_y;
+    ascii.settings.subtarfont.position_y = ascii.font_p.position_y;
     ascii.settings.expfont.position_y = ascii.font_d.position_y;    
     settings.save();
 end
@@ -478,7 +494,7 @@ ashita.events.register('load', 'load_cb', function ()
     ascii.font_m = fonts.new(ascii.settings.monsterfont);
     ascii.font_n = fonts.new(ascii.settings.monsterfont);
     ascii.font_o = fonts.new(ascii.settings.monsterfont);
-    ascii.font_p = fonts.new(ascii.settings.monsterfont);
+    ascii.font_p = fonts.new(ascii.settings.subtarfont);
 ---- Player Window labels
     ascii.font_q = fonts.new(ascii.settings.selffont);
     ascii.font_r = fonts.new(ascii.settings.selffont);
@@ -872,6 +888,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
         ascii.font_d.locked = false; --
         ascii.font_e.locked = false; -- Seem to have to have these here.
         ascii.font_m.locked = false; -- Declaring these (not true) doesn't work, from the settings making all set true.
+        ascii.font_p.locked = false; --
         ascii.font_q.locked = false; -- Oh well.
     end 
 		  -- *** START HERE ***
@@ -1692,13 +1709,6 @@ ashita.events.register('d3d_present', 'present_cb', function ()
         if (tarmob == nil) then 		-- Have nothing targetted
             ascii.font_p.visible = false;
         else
-            ascii.font_p.position_x = ascii.font_m.position_x;
-            if (ascii.settings.options.monsbab ~= true) then  
-                ascii.font_p.position_y = ascii.font_m.position_y + (4 * ((monsterfontsize * 2) - offset));
-            else
-                ascii.font_p.position_y = ascii.font_m.position_y - (4 * ((monsterfontsize * 2) - offset));
-            end
-
             if(tarmob ~= nil and target:GetIsSubTargetActive() == 0 ) then 	
 					-- Have a Non-Monster Target and no Sub-Target
                 if (spawn ~= 16) then -- Main Target is not Monster
@@ -2076,14 +2086,12 @@ local function print_help(isError)
         { '/ASCII-Joy monster ', 'Toggles the Monster Health/Sub-Target Window.' },
         { '/ASCII-Joy mon-pos ', 'Toggles Monster info Above/Below their Health Bar.' },
         { '/ASCII-Joy mon-info', 'Toggles Aggro/Weak info. Not live info, pulled from file.' },
-        { '/ASCII-Joy mon-sub ', 'Toggles Target/Sub Name Above/Below the Monster Health Bar.' },
-        { '                   ', 'If you have no monster targetted, this is the name of who/what' },
-        { '                   ', 'you have targetted. If you do have a monster targetted, this is' },
-        { '                   ', 'who/what you are trying to use a spell/skill/item/whatever on.' },
         { '',''},
         { '','To move the Cast Bar, Shift-LeftClick-Drag the bar around while casting (sorry, only way to see it).'},
+        { '','To move the Experience Bar, Shift-LeftClick-Drag the Bar itself.' },
         { '','To move the Party Window, Shift-LeftClick-Drag the line with Zone Name.' },
         { '','To move the Monster Window, Shift-LeftClick-Drag the line with the Monster Health.' },
+        { '','To move the Target/Sub-Target Name, Shift-LeftClick-Drag the italicized Name.' },
         { '','To move the Player Window, Shift-LeftClick-Drag the line with your own Health.' },
         { '','  If you have Life Hearts from "The Myth of Zilda(tm)", Shift-LeftClick-Drag the word "LIFE".' },
         { '','You must use </ASCII-Joy save>, change zones, or unload/load the addon to save positions.' },
@@ -2306,22 +2314,6 @@ ashita.events.register('command', 'command_cb', function (ee)
                 print(chat.header(addon.name):append(chat.message('You WILL see the Monster Extended Info.')));
             elseif(ascii.settings.options.moninfo == false) then
                 print(chat.header(addon.name):append(chat.message('You will NOT see the Monster Extended Info.')));
-            end
-            save_everything();
-            return;
-        else
-            print(chat.header(addon.name):append(chat.message('You need the Monster Window enabled to toggle this.')));
-            return;
-        end
-    end
-
-    if (#args == 2 and args[2]:any('mon-sub')) then
-        if(ascii.settings.options.monster == true) then
-            ascii.settings.options.monsbab = not ascii.settings.options.monsbab;
-            if(ascii.settings.options.monsbab == true) then
-                print(chat.header(addon.name):append(chat.message('You will see the (Sub)-Target Name ABOVE the Monster Window.')));
-            elseif(ascii.settings.options.monsbab == false) then
-                print(chat.header(addon.name):append(chat.message('You will see the (Sub)-Target Name BELOW the Monster Window.')));
             end
             save_everything();
             return;
