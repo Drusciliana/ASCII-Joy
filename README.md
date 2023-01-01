@@ -3,7 +3,7 @@
 ****** Atom0s for his guidance and use of his various addons as examples and inspiration...        
 ****** Vicrelant for the use of the monster data tables from his addon.
 
-* 1.3.0 Additionss * - Added Alliance Windows (read warning). Pet's target tracked if it differs than your own. 
+* 1.3.0 Additions * - Added Alliance Windows (read warning). Pet's target tracked if it differs than your own. 
 * 1.3.1 Fix * - Fixed issue with losing combat animations (very odd) when using a pet. Lightened pet HP bar.
 * 1.3.2 Change * - Target/Sub-Target Name (the green/purple italic name), is now movable (by popular demand).
 * Known Issues * - Party Members set to Anonymous make their stats look weird, or dead, or faraway sometimes.
