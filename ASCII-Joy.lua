@@ -939,6 +939,10 @@ ashita.events.register('d3d_present', 'present_cb', function ()
             CastColor = '|cffffffff|';
         elseif (CastType ~= 1) then
             CastColor = '|cffffff00|';
+        elseif (CastType ~= 2) then
+            CastColor = '|cff00ffff|';
+        elseif (CastType ~= 3) then
+            CastColor = '|cffff00ff|';
         end
 
         CastStr = string.gsub(CastStr,'_',CastColor..'@',CastChk);
@@ -1942,14 +1946,9 @@ ashita.events.register('d3d_present', 'present_cb', function ()
             ascii.font_w.position_y = ascii.font_t.position_y + (selffontsize * 2) + offset;            
         end ------------- END 'Q' Stuff
 
-        if (HPValue <= 33) then
-            if (tick >= 15) then
-                ascii.font_q.background.color = 0x5FFF0000;
-                ascii.font_u.background.color = 0x5FFF0000;
-            else
-                ascii.font_q.background.color = ascii.settings.selffont.background.color;
-                ascii.font_u.background.color = ascii.settings.selffont.background.color;
-            end
+        if (HPValue <= 33 and tick >= 15) then
+            ascii.font_q.background.color = 0x5FFF0000;
+            ascii.font_u.background.color = 0x5FFF0000;
         else
             ascii.font_q.background.color = ascii.settings.selffont.background.color;
             ascii.font_u.background.color = ascii.settings.selffont.background.color;
@@ -1976,12 +1975,9 @@ ashita.events.register('d3d_present', 'present_cb', function ()
             local pmResult = '|cffffffff|{____________________|cffffffff|}';
             local PTCheck = math.floor(pettp / (3000 / 20));
             local PTColor = '|cff7f7f7f|';
-            local tResult = string.gsub(tResult,'_',PTColor..'#',PTCheck);
             local PMCheck = math.floor(petmp / (100 / 20));
             local PMColor = '|cfff48dff|';
             local PetTarget = nil;
-
-            tResult = string.gsub(tResult,'_',' ');
 
             while (petname:len() < 15) do
                 petname = petname.." ";
@@ -2001,6 +1997,8 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                 PMColor = '|cffff00cc|';
             end
             
+            tResult = string.gsub(tResult,'_',PTColor..'#',PTCheck);
+            tResult = string.gsub(tResult,'_',' ');
             pmResult = string.gsub(pmResult,'_',PMColor..'#',PMCheck);
             pmResult = string.gsub(pmResult,'_',' ');
             ascii.font_t.text = string.format(tResult..'        '..pmResult);
@@ -2021,7 +2019,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                         end
                         PetTarName = string.sub(PetTarName, 1, 19);
                     end
-                    PTTCheck = math.floor(PetTarHPPer / (100 / 40));
+                    PTTCheck = math.floor(PetTarHPPer / (100 / 30));
                     PetTarResult = string.gsub(PetTarResult,'_','#',PTTCheck);
                     PetTarResult = string.gsub(PetTarResult,'_',' ');
                     ascii.font_w.visible = true;
