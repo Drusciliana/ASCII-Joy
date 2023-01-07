@@ -1,12 +1,13 @@
-************************ ASCII-Joy v1.3.2  rel. Jan. 1, 2023      
+************************ ASCII-Joy v1.3.3  rel. Jan. 7, 2023      
 ****** Credit and Thanks goes out to:        
 ****** Atom0s for his guidance and use of his various addons as examples and inspiration...        
 ****** Vicrelant for the use of the monster data tables from his addon.
 
 * 1.3.0 Additions * - Added Alliance Windows (read warning). Pet's target tracked if it differs than your own. 
-* 1.3.1 Fix * - Fixed issue with losing combat animations (very odd) when using a pet. Lightened pet HP bar.
-* 1.3.2 Change * - Target/Sub-Target Name (the green/purple italic name), is now movable (by popular demand).
-* Known Issues * - Party Members set to Anonymous make their stats look weird, or dead, or faraway sometimes.
+- 1.3.1 Fix * - Fixed issue with losing combat animations (very odd) when using a pet. Lightened pet HP bar.
+- 1.3.2 Change * - Target/Sub-Target Name (the green/purple italic name), is now movable (by popular demand).
+- 1.3.3 Addition * - Option Toggle "order" changes Party Window sorting (Ascending/Descending).
+- Known Issues * - Party Members set to Anonymous make their stats look weird, or dead, or faraway sometimes.
 
 * OVERVIEW *
     Relive the glory days before there were graphics, when MUDs were still cool, all while having a somewhat functional UI!
@@ -53,6 +54,7 @@ Here's some Syntax:
         /ASCII-Joy cast      Toggles the Cast Bar.
         /ASCII-Joy exp       Toggles the Experience Bar.
         /ASCII-Joy party     Toggles the Party Window on and off.
+	/ASCII-Joy order     Toggles Party Window list sorting (Ascending/Descending).
         /ASCII-Joy alliance  Toggles Alliance Windows (WILL COST SOME FPS, FOR SURE).
         /ASCII-Joy solo      Toggles seeing yourself in Party Window while solo (Zone Name remains).
         /ASCII-Joy player    Toggles Player Window of your own HP Bar, TP, Mana, Pet info (if you have one).
