@@ -28,7 +28,7 @@
 
 addon.author  = 'Drusciliana';
 addon.name    = 'ASCII-Joy';
-addon.version = '1.3.2';
+addon.version = '1.3.3';
 addon.desc = 'Relive the glory days before there were graphics, when MUDs were still cool, all while having a somewhat functional UI!';
 addon.link = 'Discord name is just plain old D. (with the period), #2154 if that helps. Stay on top of updates! https://github.com/Drusciliana/ASCII-Joy';
 
@@ -44,7 +44,8 @@ T{
     options = T{
     party =     true, 		
     solo =      false, 
-    alliance =  false,		
+    alliance =  false,
+    order =     true,		
     monster =   true, 		
     moninfo =   false, 
     monabov =   true,
@@ -985,7 +986,18 @@ ashita.events.register('d3d_present', 'present_cb', function ()
         local partyfontsize = ascii.settings.partyfont.font_height; 
         local fontsize = partyfontsize * 2; 
         local elsewhere = true;
-        for x = 0, 5 do  
+        local StartNumber = 0;
+        local EndNumber = 5;
+        local Order = 1;
+        local First = -1;
+        if (ascii.settings.options.order == true) then
+            StartNumber = 5;
+            EndNumber = 0;
+            Order = -1;
+        end
+
+        for x = StartNumber, EndNumber, Order do  
+        --for x = 0, 5 do
             elsewhere = true;
     
             if (party:GetMemberIsActive(x) == 0) then
@@ -997,11 +1009,14 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                     elsewhere = false;  
                 end
         ----- Setup Party Window (NEATEST I THINK I CAN MAKE IT, WORKS BEST ON 10 POINT FONTS at 1920x1080)
-	    ----- "cur" is Health, "new" is Mana, "spc" is blank line between party members
-                if (x == 0) then
+	    ----- "cur" is Health, "new" is Mana, "spc" is blank line between party members -- MAYBE PUT SOME SORT OF FOUND CHECK FOR THE FIRST PERSON IF GOING DESCENDING ORDER.
+                if (spcy == 0) then -- Maybe make this spcy == 0, as it would only be 0 for the first player in the group, then it would be set, was x == 0;
                     spcy = ascii.font_e.GetPositionY();
                 else
                     spcy = cury - fontsize - offset;
+                end
+                if (First == -1) then
+                    First = x;
                 end
                 newy = spcy - fontsize - offset;
                 cury = newy - fontsize - offset;               
@@ -1196,7 +1211,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                     end	    
                 end
 
-                if (x == 0) then      -- We only want the bottom line to be moveable: "e" 
+                if (x == First) then      -- We only want the bottom line to be moveable: "e" -- Was 0, now StartNum, now First
                     OutThr = AshitaCore:GetResourceManager():GetString('zones.names', party:GetMemberZone(0));
                     while OutThr:len() < 35 do
                         OutThr = " "..OutThr;
@@ -1217,25 +1232,39 @@ ashita.events.register('d3d_present', 'present_cb', function ()
         -- ALLIANCE WINDOWS
         if (ascii.settings.options.alliance == true) then
             for z = 1, 2 do
-                local startnum = 6;
-                local endnum = 11;
+                local startnum = 0;
+                local endnum = 0;
                 local count = 0;
                 local offtooff = 0;
+                local increment = 0;
                 if (ascii.font_e.font_height == 14) then
                     offtooff = 1;
                 end
-                if (z == 2) then
-                    startnum = 12;
-                    endnum = 17;
+                if (ascii.settings.options.order == true) then
+                    startnum = 11;
+                    endnum = 6;
+                    increment = -1;
+                    if (z == 2) then
+                        startnum = 17;
+                        endnum = 12;
+                    end
+                else
+                    startnum = 6;
+                    endnum = 11;
+                    increment = 1;
+                    if (z == 2) then
+                        startnum = 12;
+                        endnum = 17;
+                    end
                 end
-                for x = startnum, endnum do
+                for x = startnum, endnum, increment do
                     if (party:GetMemberIsActive(0) ~= x) then 
                         count = count + 1;
                     end
                 end
 
                 if (count == 0) then
-                    for x = startnum, endnum do  
+                    for x = startnum, endnum, increment do  
                         ascii.font_f[x].visible = false;
                         ascii.font_h[x].visible = false;
                     end
@@ -1968,7 +1997,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
             local petname = pet.Name;
             local pettp = player:GetPetTP();
             local petmp = player:GetPetMPPercent();
-            local pResult = '{|cff6969be|__________________________________________________|cffffffff|}'; 
+            local pResult = '{|cff00ffff|__________________________________________________|cffffffff|}'; 
             local PHValue = pet.HPPercent;
             local PHCheck = math.floor(PHValue / (100 / 50));
             local tResult  = '|cffffffff|{____________________|cffffffff|}';
@@ -2075,6 +2104,7 @@ local function print_help(isError)
         { '/ASCII-Joy cast     ', 'Toggles the Cast Bar.' },
         { '/ASCII-Joy exp      ', 'Toggles the Experience Bar.'},
         { '/ASCII-Joy party    ', 'Toggles the Party Window on and off.' },
+        { '/ASCII-Joy order    ', 'Toggles Party Window list sorting (Ascending/Descending).' },
         { '/ASCII-Joy alliance ', 'Toggles Alliance Windows (WILL COST SOME FPS, FOR SURE).'},
         { '/ASCII-Joy solo     ', 'Toggles seeing yourself in Party Window while solo (Zone Name remains).' },
         { '/ASCII-Joy player   ', 'Toggles Player Window of your own HP Bar, TP, Mana, Pet info (if you have one).' },
@@ -2253,6 +2283,22 @@ ashita.events.register('command', 'command_cb', function (ee)
                 print(chat.header(addon.name):append(chat.message('You will NOT see yourself in the Party Window while Solo.')));
             elseif(ascii.settings.options.solo == false) then
                 print(chat.header(addon.name):append(chat.message('You WILL see yourself in the Party Window while Solo.')));
+            end
+            save_everything();
+            return;
+        else
+            print(chat.header(addon.name):append(chat.message('You need the Party Window enabled to toggle this.')));
+            return;
+        end
+    end
+
+    if (#args == 2 and args[2]:any('order')) then
+        if(ascii.settings.options.party == true) then
+            ascii.settings.options.order = not ascii.settings.options.order;
+            if(ascii.settings.options.order == true) then
+                print(chat.header(addon.name):append(chat.message('You will see the Party Window in ASCENDING Order (You at the top).')));
+            elseif(ascii.settings.options.order == false) then
+                print(chat.header(addon.name):append(chat.message('You will see the Party Window in DESCENDING Order (You at the bottom).')));
             end
             save_everything();
             return;
