@@ -54,7 +54,7 @@ Here's some Syntax:
         /ASCII-Joy cast      Toggles the Cast Bar.
         /ASCII-Joy exp       Toggles the Experience Bar.
         /ASCII-Joy party     Toggles the Party Window on and off.
-	/ASCII-Joy order     Toggles Party Window list sorting (Ascending/Descending).
+        /ASCII-Joy order     Toggles Party Window list sorting (Ascending/Descending).
         /ASCII-Joy alliance  Toggles Alliance Windows (WILL COST SOME FPS, FOR SURE).
         /ASCII-Joy solo      Toggles seeing yourself in Party Window while solo (Zone Name remains).
         /ASCII-Joy player    Toggles Player Window of your own HP Bar, TP, Mana, Pet info (if you have one).
