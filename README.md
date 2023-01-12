@@ -4,12 +4,12 @@
 ****** Vicrelant for the use of the monster data tables from his addon.     
 
 * 1.4.0 Additions/Changes/Fixes compared to 1.3.0:     
-      Added Alliance Windows (Toggleable, read warning).      Pet's target tracked if it differs than your own. 
-      Fixed issue with losing combat animations (very odd) when using a pet. Lightened pet HP bar.
-      Target/Sub-Target Name (the green/purple italic name), is now movable (by popular demand).
-      Option Toggle "order" changes Party Window sorting (Ascending/Descending).
-      Option Toggle "tarplay" lets you see other Players' Health in the Monster Health Window.
-      Known Issues * - Party Members set to Anonymous make their stats look weird, or dead, or faraway sometimes.
+  - Added Alliance Windows (Toggleable, read warning). Pet's target tracked if it differs than your own. 
+  - Fixed issue with losing combat animations (very odd) when using a pet. Lightened pet HP bar.
+  - Target/Sub-Target Name (the green/purple italic name), is now movable (by popular demand).
+  - Option Toggle "order" changes Party Window sorting (Ascending/Descending).
+  - Option Toggle "tarplay" lets you see other Players' Health in the Monster Health Window.
+  - Known Issues * - Party Members set to Anonymous make their stats look weird, or dead, or faraway sometimes.
 
 * OVERVIEW *
     Relive the glory days before there were graphics, when MUDs were still cool, all while having a somewhat functional UI!
