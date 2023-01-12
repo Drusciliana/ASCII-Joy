@@ -1937,6 +1937,8 @@ ashita.events.register('d3d_present', 'present_cb', function ()
             ascii.font_s.position_y = ascii.font_r.position_y + (selffontsize * 2) + offset;
             ascii.font_t.position_x = ascii.font_s.position_x;
             ascii.font_t.position_y = ascii.font_s.position_y + (selffontsize * 2) + offset;
+            ascii.font_w.position_x = ascii.font_t.position_x;
+            ascii.font_w.position_y = ascii.font_t.position_y + (selffontsize * 2) + offset; 
             local push = 0;
             if (ascii.font_r.font_height == 10) then -- push is for moving the hp/mana number and pet name line to proper spacing under large LIFE word.
                 push = 4;
