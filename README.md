@@ -9,6 +9,7 @@
   - Target/Sub-Target Name (the green/purple italic name), is now movable (by popular demand).
   - Option Toggle "order" changes Party Window sorting (Ascending/Descending).
   - Option Toggle "tarplay" lets you see other Players' Health in the Monster Health Window.
+  - Added Mob Index number to Monster Info Window (by popular demand).
   - Known Issues * - Party Members set to Anonymous make their stats look weird, or dead, or faraway sometimes.
 
 * OVERVIEW *
