@@ -1550,7 +1550,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                                 MobAggro = mb_data[i].aggro;
                             end
 
-                            MobWeak = 'Aggro: |cffff0000|'..MobAggro..' WEAK: '..mb_data[i].weak;
+                            MobWeak = 'ID: '..TarID..'  Aggro: |cffff0000|'..MobAggro..' WEAK: '..mb_data[i].weak;
                             MobWeak = string.gsub(MobWeak,'WEAK:','|cffffffff|WEAK:');
                             MobWeak = string.gsub(MobWeak,'Piercing','|cffa0a0a0|PRC');
                             MobWeak = string.gsub(MobWeak,'Fire','|cffff0000|FIR');
@@ -1584,7 +1584,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                 MobLvlStr = " "..MobLvlStr;
             end
           
-            OutEig = '  |cffffffff|'..' LVL: '..tostring(MobLvlStr)..'   '..MobJob..'|cffffffff|  | '..MobType..' '..MobDefEva;
+            OutEig = '  |cffffffff|'..' LVL: '..tostring(MobLvlStr)..'   '..MobJob..'|cffffffff|  | '..MobType..' '..MobDefEva; --..'| ID: '..TarID;
             while MobName:len() < 47 do 
                 if (centerjust == true) then
                     MobName = " "..MobName; 
