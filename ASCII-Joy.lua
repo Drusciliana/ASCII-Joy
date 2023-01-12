@@ -1,5 +1,5 @@
 --[[
-* Ashita - Copyright (c) 2014 - 2017 atom0s [atom0s@live.com]
+* Ashita - Copyright (c) 2014 - 2023 atom0s [atom0s@live.com]
 *
 * This work is licensed under the Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License.
 * To view a copy of this license, visit http://creativecommons.org/licenses/by-nc-nd/4.0/ or send a letter to
@@ -28,7 +28,7 @@
 
 addon.author  = 'Drusciliana';
 addon.name    = 'ASCII-Joy';
-addon.version = '1.3.3';
+addon.version = '1.3.4';
 addon.desc = 'Relive the glory days before there were graphics, when MUDs were still cool, all while having a somewhat functional UI!';
 addon.link = 'Discord name is just plain old D. (with the period), #2154 if that helps. Stay on top of updates! https://github.com/Drusciliana/ASCII-Joy';
 
@@ -49,6 +49,7 @@ T{
     monster =   true, 		
     moninfo =   false, 
     monabov =   true,
+    tarplay =   false,
     playwin =   true,
     exp =       false,
     zilda =     false,
@@ -1334,7 +1335,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                                 TarStar = ' ';                          
                                 if ((ID == TargetID or (party:GetMemberServerId(x) == ATSI and ATA == 1)) and elsewhere == false) then
                                     if (party:GetMemberServerId(x) == ATSI and ATA == 1) then -- some reason changing combat targets triggers purple on player.
-                                        if(target:GetTargetIndex(1) or target:GetIsSubTargetActive() == 1) then -- Not sure why I made that a boolean? Forgot.
+                                        if(target:GetTargetIndex(1) ~= 0 or target:GetIsSubTargetActive() == 1) then 
                                             NameColor = '|cffaf4be2|';
                                             TarStar = '|cffff69B4|*';
                                         end
@@ -1504,8 +1505,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
         local OutSix = '';
         local OutSev = '';
         local OutEig = '';
-        local MobHPColor = '|cffff0000|';
-        local mobResult = '_____________________________________________'
+        local mobResult = '|cffff0000|_____________________________________________'
         local monsterfontsize = ascii.settings.monsterfont.font_height;
    
         if(target ~= nil) then
@@ -1524,7 +1524,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                 tarserverid = tarmob.ServerId;   -- ServerId is large and unique to the dat file.
             end
 			---- Poll everything in the zone to find the mob we want to kill
-            if (tarserverid > 0 and LastMob ~= tarserverid and GotPacket == false and ascii.settings.options.moninfo == true) then 
+            if (spawn == 16 and tarserverid > 0 and LastMob ~= tarserverid and GotPacket == false and ascii.settings.options.moninfo == true) then 
                 for i = 1, arraySize do	----- START FOR LOOP      --^^^ No sense wasting clock cycles if we have all the info.
                     if (mb_data[i] ~= nil) then  -- Vicrelant's ibar addon incorporated here.
                         if (tonumber(mb_data[i].id) == tarserverid) then
@@ -1599,15 +1599,22 @@ ashita.events.register('d3d_present', 'present_cb', function ()
             while MobStr:len() < 3 do 
                 MobStr = " "..MobStr; 
             end  ]]
-            if (spawn ~= 16) then
+            if (spawn == 16) then
+                mobResult = string.gsub(mobResult,'_','#',MobHPCheck);
+                mobResult = string.gsub(mobResult,'_',' ');
+                mobResult = ''..MobStr..'|cffffffff||'..mobResult..'|cffffffff||';
+            elseif (spawn == 1 and ascii.settings.options.tarplay == true) then
+                mobResult = '|cff00ff44|_____________________________________________'
+                mobResult = string.gsub(mobResult,'_','#',MobHPCheck);
+                mobResult = string.gsub(mobResult,'_',' ');
+                mobResult = ''..MobStr..'|cffffffff||'..mobResult..'|cffffffff||';
+                ascii.font_o.visible = false;
+                ascii.font_l.visible = false;
+            else
                 ascii.font_m.visible = false;
                 ascii.font_n.visible = false;
                 ascii.font_o.visible = false;
                 ascii.font_l.visible = false;
-            else
-                mobResult = string.gsub(mobResult,'_',MobHPColor..'#',MobHPCheck);
-                mobResult = string.gsub(mobResult,'_',' ');
-                mobResult = ''..MobStr..'|cffffffff||'..mobResult..'|cffffffff||';
             end
         else
             MobDefEva = '(   ????   )';
@@ -1616,15 +1623,9 @@ ashita.events.register('d3d_present', 'present_cb', function ()
             GotPacket = false;
         end -- END If Target Isn't Nil.
         
-        if (spawn ~= 16) then     -- Differentiate Monsters from NPC's/Players/Goblin Footprints/etc.
-            ascii.font_m.visible = false;    -- This all needs to be here or it will try to make a window for non-monsters
-            ascii.font_n.visible = false;    --
-            ascii.font_o.visible = false;    --
-            ascii.font_l.visible = false;    --
-            SneakAttack = false;
-        else
+        if (spawn == 16 or (spawn == 1 and ascii.settings.options.tarplay == true)) then     -- Differentiate Monsters from NPC's/Players/Goblin Footprints/etc.
             ------ SNEAK ATTACK FUNCTION!!!
-            if (player:GetMainJob() == 6 or player:GetSubJob() == 6) then
+            if ((player:GetMainJob() == 6 or player:GetSubJob() == 6) and spawn == 16) then
                 local pX = AshitaCore:GetMemoryManager():GetEntity():GetLocalPositionX(party:GetMemberTargetIndex(0)); 
                 local pY = AshitaCore:GetMemoryManager():GetEntity():GetLocalPositionY(party:GetMemberTargetIndex(0)); 
                 local mX = AshitaCore:GetMemoryManager():GetEntity():GetLocalPositionX(TarID);
@@ -1720,7 +1721,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
             end
             ascii.font_n.visible = true;
             ascii.font_n.text = tostring(OutFiv);
-            if (ascii.settings.options.moninfo == true) then
+            if (ascii.settings.options.moninfo == true and spawn == 16) then
                 ascii.font_o.position_x = ascii.font_m.position_x;
                 if (ascii.settings.options.monabov ~= true) then
                     ascii.font_l.position_y = ascii.font_n.position_y - (monsterfontsize * 2) - offset;
@@ -1737,6 +1738,12 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                 ascii.font_l.visible = false;                 
                 ascii.font_o.visible = false;
             end
+        else
+            ascii.font_m.visible = false;    -- This all needs to be here or it will try to make a window for non-monsters
+            ascii.font_n.visible = false;    --
+            ascii.font_o.visible = false;    --
+            ascii.font_l.visible = false;    --
+            SneakAttack = false; 
         end
 
         if (tarmob == nil) then 		-- Have nothing targetted
@@ -1745,7 +1752,11 @@ ashita.events.register('d3d_present', 'present_cb', function ()
             if(tarmob ~= nil and target:GetIsSubTargetActive() == 0 ) then 	
 					-- Have a Non-Monster Target and no Sub-Target
                 if (spawn ~= 16) then -- Main Target is not Monster
-                    ascii.font_p.visible = true;
+                    if (spawn == 1 and ascii.settings.options.tarplay == true) then
+                        ascii.font_p.visible = false;
+                    else
+                        ascii.font_p.visible = true;
+                    end
                     OutSev = tarmob.Name;
                 else 				-- Main Target is Monster and no Sub-Target
                     ascii.font_p.visible = false;
@@ -2114,6 +2125,7 @@ local function print_help(isError)
         { '/ASCII-Joy monster ', 'Toggles the Monster Health/Sub-Target Window.' },
         { '/ASCII-Joy mon-pos ', 'Toggles Monster info Above/Below their Health Bar.' },
         { '/ASCII-Joy mon-info', 'Toggles Aggro/Weak info. Not live info, pulled from file.' },
+        { '/ASCII-Joy tarplay ', 'Toggles ability to see other Players Health in the Monster Health Window.' },
         { '',''},
         { '','To move the Cast Bar, Shift-LeftClick-Drag the bar around while casting (sorry, only way to see it).'},
         { '','To move the Experience Bar, Shift-LeftClick-Drag the Bar itself.' },
@@ -2342,6 +2354,22 @@ ashita.events.register('command', 'command_cb', function (ee)
                 print(chat.header(addon.name):append(chat.message('You will see the monster info ABOVE their Health Bar.')));
             elseif(ascii.settings.options.monabov == false) then
                 print(chat.header(addon.name):append(chat.message('You will see the monster info BELOW their Health Bar.')));
+            end
+            save_everything();
+            return;
+        else
+            print(chat.header(addon.name):append(chat.message('You need the Monster Window enabled to toggle this.')));
+            return;
+        end
+    end
+
+    if (#args == 2 and args[2]:any('tarplay')) then
+        if(ascii.settings.options.monster == true) then
+            ascii.settings.options.tarplay = not ascii.settings.options.tarplay;
+            if(ascii.settings.options.tarplay == true) then
+                print(chat.header(addon.name):append(chat.message('You will see Players in the Monster Health Window.')));
+            elseif(ascii.settings.options.tarplay == false) then
+                print(chat.header(addon.name):append(chat.message('You will NOT see Players in the Monster Health Window.')));
             end
             save_everything();
             return;
