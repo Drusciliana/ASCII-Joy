@@ -4,7 +4,7 @@
 ****** Vicrelant for the use of the monster data tables from his addon.     
 
 * 1.4.0 Additions/Changes/Fixes compared to 1.3.0:     
-      Added Alliance Windows (Toggleable, read warning). Pet's target tracked if it differs than your own. 
+      Added Alliance Windows (Toggleable, read warning).      Pet's target tracked if it differs than your own. 
       Fixed issue with losing combat animations (very odd) when using a pet. Lightened pet HP bar.
       Target/Sub-Target Name (the green/purple italic name), is now movable (by popular demand).
       Option Toggle "order" changes Party Window sorting (Ascending/Descending).
