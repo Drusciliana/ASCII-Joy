@@ -1,12 +1,15 @@
-************************ ASCII-Joy v1.3.3  rel. Jan. 7, 2023      
-****** Credit and Thanks goes out to:        
-****** Atom0s for his guidance and use of his various addons as examples and inspiration...        
+************************ ASCII-Joy v1.4.0  rel. Jan. 11, 2023
+****** Credit and Thanks goes out to: 
+****** Atom0s for his guidance and use of his various addons as examples and inspiration...
 ****** Vicrelant for the use of the monster data tables from his addon.
 
-- 1.3.0 Additions * - Added Alliance Windows (read warning). Pet's target tracked if it differs than your own. 
-- 1.3.1 Fix * - Fixed issue with losing combat animations (very odd) when using a pet. Lightened pet HP bar.
-- 1.3.2 Change * - Target/Sub-Target Name (the green/purple italic name), is now movable (by popular demand).
-- 1.3.3 Addition * - Option Toggle "order" changes Party Window sorting (Ascending/Descending).
+* 1.4.0 Additions/Changes/Fixes compared to 1.3.0:
+- Added Alliance Windows (Toggleable, read warning). Pet's target tracked if it differs than your own. 
+- Fixed issue with losing combat animations (very odd) when using a pet. Lightened pet HP bar.
+- Target/Sub-Target Name (the green/purple italic name), is now movable (by popular demand).
+- Option Toggle "order" changes Party Window sorting (Ascending/Descending).
+- Option Toggle "tarplay" lets you see other Players' Health in the Monster Health Window.
+
 - Known Issues * - Party Members set to Anonymous make their stats look weird, or dead, or faraway sometimes.
 
 * OVERVIEW *
@@ -64,6 +67,7 @@ Here's some Syntax:
         /ASCII-Joy monster   Toggles the Monster Health/Sub-Target Window
         /ASCII-Joy mon-pos   Toggles Monster info Above/Below their Health Bar.
         /ASCII-Joy mon-info  Toggles Aggro/Weak info. Not live info, pulled from file.
+        /ASCII-Joy tarplay   Toggles ability to see other Players Health in the Monster Health Window.	
 	
         To move the Cast Bar, Shift-LeftClick-Drag the bar around while casting (sorry, only way to see it).
         To move the Experience Bar, Shift-LeftClick-Drag the Bar itself.
