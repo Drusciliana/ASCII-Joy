@@ -25,13 +25,13 @@
         tells you the name of the zone someone is in if they aren't in your zone. Now also tracks Alliance Members. This is
         toggleable due to the fact it is extremely cumbersome and may cause a dramatic FPS loss for some. Sorry. Caveat Empor.
 
-    Monster Window tracks the HP percentage, mob class, aggro types, weaknesses, and your current sub-target.
-        -- Now incorporates the "checker" addon, showing live data of Monster Level, Defense, Evasion modifiers 
-		(after small delay as to not flood the server). Doesn't work on Notorious Monsters (by design).
-	-- If you currently use the "checker" addon, you can disable/unload it to stop chat line spam as this triggers it.
-        -- Now has a feature that if you are a Thief (Main or Sub), there is a Sneak Attack helper that will change the color
-                of the monster's health background if you're within the rear cone of the monster, facing it's rear, and 
-                within 3 yalms.
+    Monster Window tracks the HP percentage, mob class, aggro types, weaknesses, and your current sub-target.     
+        -- Now incorporates the "checker" addon, showing live data of Monster Level, Defense, Evasion modifiers     
+		(after small delay as to not flood the server). Doesn't work on Notorious Monsters (by design).     
+	-- If you currently use the "checker" addon, you can disable/unload it to stop chat line spam as this triggers it.     
+        -- Now has a feature that if you are a Thief (Main or Sub), there is a Sneak Attack helper that will change the color     
+                of the monster's health background if you're within the rear cone of the monster, facing it's rear, and      
+                within 3 yalms.     
 
     Self Window monitors your own HP, MP, TP with HP changing colors depending how injured you are. If you have a pet, then
 	it will also monitor the Pet's HP, MP, TP with both TP gauges changing colors over 1000. Now also tracks the pet's
