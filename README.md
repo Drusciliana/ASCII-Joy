@@ -12,7 +12,7 @@
   - Option Toggle "tarplay" lets you see other Players' Health in the Monster Health Window.
   - Added Mob Index number to Monster Info Window (by popular demand).
   
-  - Known Issues * - Party Members set to Anonymous make their stats look weird, or dead, or faraway sometimes.
+  * Known Issues * - Party Members set to Anonymous make their stats look weird, or dead, or faraway sometimes.
   - Raise Sickness wearing off taking a while to accurately show max hp again. Odd.
 
 * OVERVIEW *
