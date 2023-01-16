@@ -1,4 +1,4 @@
-************************ ASCII-Joy v1.4.0  rel. Jan. 11, 2023     
+************************ ASCII-Joy v1.4.1  rel. Jan. 11, 2023     
 ****** Credit and Thanks goes out to:      
 ****** Atom0s for his guidance and use of his various addons as examples and inspiration...      
 ****** Vicrelant for the use of the monster data tables from his addon.     
