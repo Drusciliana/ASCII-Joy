@@ -3,6 +3,7 @@
 ****** Atom0s for his guidance and use of his various addons as examples and inspiration...      
 ****** Vicrelant for the use of the monster data tables from his addon.     
 
+* 1.4.1 Fixes - Various Alliance Window issues.
 * 1.4.0 Additions/Changes/Fixes compared to 1.3.0:     
   - Added Alliance Windows (Toggleable, read warning). Pet's target tracked if it differs than your own. 
   - Fixed issue with losing combat animations (very odd) when using a pet. Lightened pet HP bar.
@@ -10,7 +11,9 @@
   - Option Toggle "order" changes Party Window sorting (Ascending/Descending).
   - Option Toggle "tarplay" lets you see other Players' Health in the Monster Health Window.
   - Added Mob Index number to Monster Info Window (by popular demand).
+  
   - Known Issues * - Party Members set to Anonymous make their stats look weird, or dead, or faraway sometimes.
+  - Raise Sickness wearing off taking a while to accurately show max hp again. Odd.
 
 * OVERVIEW *
     Relive the glory days before there were graphics, when MUDs were still cool, all while having a somewhat functional UI!
