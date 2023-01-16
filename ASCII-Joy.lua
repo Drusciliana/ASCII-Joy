@@ -28,7 +28,7 @@
 
 addon.author  = 'Drusciliana';
 addon.name    = 'ASCII-Joy';
-addon.version = '1.4.0';
+addon.version = '1.4.1';
 addon.desc = 'Relive the glory days before there were graphics, when MUDs were still cool, all while having a somewhat functional UI!';
 addon.link = 'Discord name is just plain old D. (with the period), #2154 if that helps. Stay on top of updates! https://github.com/Drusciliana/ASCII-Joy';
 
@@ -285,7 +285,7 @@ local jobs = T{
 
 local ascii = T{                    -- FONT INFORMATION, WORKING VARIABLES.
     font_a = nil, -- Alliance 1
-    font_b = nil, -- Allaince 2
+    font_b = nil, -- Alliance 2
     font_c = nil, -- Cast Bar
     font_d = nil, -- Experience Bar
     font_e = nil, -- Party Zone Name
@@ -961,9 +961,9 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 -------- END Cast Bar
 
 -------- Experience Bar
-    if (ascii.settings.options.exp == true) then     --  100 Squares? VVV  VVV
+    if (ascii.settings.options.exp == true) then     --  99 Squares? VVV  VVV So there isn't always an empty one at 99.9 percent.
         if (player ~= nil) then
-            local ExpStr = '||cffffff00|____________________________________________________________________________________________________|cffffffff||'
+            local ExpStr = '||cffffff00|___________________________________________________________________________________________________|cffffffff||'
             local ExpNeed = player:GetExpNeeded();
             local ExpCurr = player:GetExpCurrent();
             local ExpPer = 100 * (ExpCurr/ExpNeed);
@@ -998,7 +998,6 @@ ashita.events.register('d3d_present', 'present_cb', function ()
         end
 
         for x = StartNumber, EndNumber, Order do  
-        --for x = 0, 5 do
             elsewhere = true;
     
             if (party:GetMemberIsActive(x) == 0) then
@@ -1238,6 +1237,9 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                 local count = 0;
                 local offtooff = 0;
                 local increment = 0;
+                local allfirst = -1;
+                spcy = 0;
+
                 if (ascii.font_e.font_height == 14) then
                     offtooff = 1;
                 end
@@ -1275,19 +1277,21 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                         ascii.font_b.visible = false; -- Since there's no players in this Alliance, no sense seeing it.
                     end
                 else
-                    for x = startnum, endnum do  
+                    for x = startnum, endnum, increment do  
                         elsewhere = true;
-
                         if (party:GetMemberIsActive(x) == 0) then 
                             ascii.font_f[x].visible = false;
                             ascii.font_h[x].visible = false;
                         else
+                            if (allfirst == -1) then
+                                allfirst = x;
+                            end
                             if (party:GetMemberZone(x) == party:GetMemberZone(0)) then 
                                 elsewhere = false;  
                             end
              ----- Setup Alliance Windows
              ----- "cur" is Health, "new" is Mana, "spc" is blank line between party members
-                            if (x == startnum) then
+                            if (spcy == 0) then --(x == allfirst) then -- was startnum
                                 if (z == 1) then
                                     spcy = ascii.font_a.GetPositionY();
                                 else
@@ -1335,7 +1339,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                                 TarStar = ' ';                          
                                 if ((ID == TargetID or (party:GetMemberServerId(x) == ATSI and ATA == 1)) and elsewhere == false) then
                                     if (party:GetMemberServerId(x) == ATSI and ATA == 1) then -- some reason changing combat targets triggers purple on player.
-                                        if(target:GetTargetIndex(1) ~= 0 or target:GetIsSubTargetActive() == 1) then 
+                                        if(target:GetTargetIndex(1) or target:GetIsSubTargetActive() == 1) then 
                                             NameColor = '|cffaf4be2|';
                                             TarStar = '|cffff69B4|*';
                                         end
@@ -1421,7 +1425,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                                                             
                             if (elsewhere == false and ((party:GetMemberMainJob(x) ~= nil and party:GetMemberMainJob(x) <= 22 and 
                                     party:GetMemberMainJob(x) ~= 0) or (party:GetMemberMainJob(x) == 0 and party:GetMemberHPPercent(x) > 0))) then  -- Try to put in Zone Name for far away friends
-                                Output = (TarStar..NameColor..Name..leadstar..' '..TPValue..'|'..hResult..'||cff00ff00|'..HealthStr);
+                                Output = (TarStar..NameColor..Name..leadstar..' '..TPColor..TPValue..'|r|'..hResult..'||cff00ff00|'..HealthStr);
                                 ascii.font_f[x].text = tostring(Output);
                             else 
                                 if (ZoneName == nil) then
@@ -1435,8 +1439,8 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                                 ascii.font_f[x].text = tostring(Output);
                             end	    
 
-                            if (x == 6 or x == 12) then      
-                                if (x == 6) then
+                            if (x == allfirst) then--(x == 6 or x == 12) then      
+                                if (x < 12) then
                                     OutThr = 'Alliance 1';
                                 else
                                     OutThr = 'Alliance 2';
@@ -1603,7 +1607,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                 mobResult = string.gsub(mobResult,'_','#',MobHPCheck);
                 mobResult = string.gsub(mobResult,'_',' ');
                 mobResult = ''..MobStr..'|cffffffff||'..mobResult..'|cffffffff||';
-            elseif (spawn == 1 and ascii.settings.options.tarplay == true) then
+            elseif ((spawn == 1 or spawn == 4 or spawn == 8 or spawn == 9 or spawn == 13) and ascii.settings.options.tarplay == true) then
                 mobResult = '|cff00ff44|_____________________________________________'
                 mobResult = string.gsub(mobResult,'_','#',MobHPCheck);
                 mobResult = string.gsub(mobResult,'_',' ');
@@ -1623,7 +1627,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
             GotPacket = false;
         end -- END If Target Isn't Nil.
         
-        if (spawn == 16 or (spawn == 1 and ascii.settings.options.tarplay == true)) then     -- Differentiate Monsters from NPC's/Players/Goblin Footprints/etc.
+        if (spawn == 16 or ((spawn == 1 or spawn == 4 or spawn == 8 or spawn == 9 or spawn == 13) and ascii.settings.options.tarplay == true)) then     -- Differentiate Monsters from NPC's/Players/Goblin Footprints/etc.
             ------ SNEAK ATTACK FUNCTION!!!
             if ((player:GetMainJob() == 6 or player:GetSubJob() == 6) and spawn == 16) then
                 local pX = AshitaCore:GetMemoryManager():GetEntity():GetLocalPositionX(party:GetMemberTargetIndex(0)); 
@@ -1752,7 +1756,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
             if(tarmob ~= nil and target:GetIsSubTargetActive() == 0 ) then 	
 					-- Have a Non-Monster Target and no Sub-Target
                 if (spawn ~= 16) then -- Main Target is not Monster
-                    if (spawn == 1 and ascii.settings.options.tarplay == true) then
+                    if ((spawn == 1 or spawn == 4 or spawn == 8 or spawn == 9 or spawn == 13) and ascii.settings.options.tarplay == true) then
                         ascii.font_p.visible = false;
                     else
                         ascii.font_p.visible = true;
@@ -1766,7 +1770,13 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                 ascii.font_p.visible = true;
                 if (submob ~= nil) then
                     OutSev = submob.Name;
+                    local subspawn = submob.SpawnFlags;
+                    if ((subspawn == 1 or subspawn == 4 or subspawn == 8 or subspawn == 9 or subspawn == 13) and ascii.settings.options.tarplay == true) then
+                        local subHPP = submob.HPPercent;
+                        OutSev = OutSev..' ('..' '..string.format('%2.0f',subHPP)..' )';
+                    end
                 end
+
             end
         end
         if (target:GetIsSubTargetActive() == 0) then
