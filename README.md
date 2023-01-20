@@ -3,6 +3,7 @@
 ****** Atom0s for his guidance and use of his various addons as examples and inspiration...      
 ****** Vicrelant for the use of the monster data tables from his addon.     
 
+* 1.4.2 Fixes - Another Alliance Window Fix, also more efficient Sub-Target checking in-party.
 * 1.4.1 Fixes - Various Alliance Window issues.
 * 1.4.0 Additions/Changes/Fixes compared to 1.3.0:     
   - Added Alliance Windows (Toggleable, read warning). Pet's target tracked if it differs than your own. 
