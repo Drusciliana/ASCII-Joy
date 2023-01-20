@@ -28,7 +28,7 @@
 
 addon.author  = 'Drusciliana';
 addon.name    = 'ASCII-Joy';
-addon.version = '1.4.1';
+addon.version = '1.4.2';
 addon.desc = 'Relive the glory days before there were graphics, when MUDs were still cool, all while having a somewhat functional UI!';
 addon.link = 'Discord name is just plain old D. (with the period), #2154 if that helps. Stay on top of updates! https://github.com/Drusciliana/ASCII-Joy';
 
@@ -431,6 +431,18 @@ local function GetEntityByServerId(ServerID)
     return nil;
 end
 
+local function GetStPartyIndex() -- From Thorny. Thanks.
+    local ptr = AshitaCore:GetPointerManager():Get('party');
+    ptr = ashita.memory.read_uint32(ptr);
+    ptr = ashita.memory.read_uint32(ptr);
+    local isActive = (ashita.memory.read_uint32(ptr + 0x54) ~= 0);
+    if isActive then
+        return ashita.memory.read_uint8(ptr + 0x50);
+    else
+        return nil;
+    end
+end
+
 local function GetFairyMessage (mestype)
     local Message = 'Blah!';
     local count = 0;
@@ -509,7 +521,6 @@ ashita.events.register('load', 'load_cb', function ()
     ascii.font_a = fonts.new(ascii.settings.all1font);
     ascii.font_b = fonts.new(ascii.settings.all2font);
     ascii.font_e = fonts.new(ascii.settings.partyfont);
---    for x = 0, 17 do  -- Not ready do try alliance yet
     for x = 0, 17 do
         ascii.font_f[x] = fonts.new(ascii.settings.partyfont);
         ascii.font_h[x] = fonts.new(ascii.settings.partyfont);
@@ -655,7 +666,7 @@ local function FairyCatch(type, X, Y)
     FairyMessage = GetFairyMessage(type);  
     local NewFairyPosX = X;
     local NewFairyPosY = Y; 
-    if (type == 1 or type == 5) then -- Make Idle  and Death Catch only teleport it around randomly.
+    if (type == 1 or type == 5) then -- Make Idle and Death Catch only teleport it around randomly.
         NewFairyPosX = math.random(100, 1800);
         NewFairyPosY = math.random(100, 900);
     elseif (type == 3) then
@@ -1051,12 +1062,10 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                     local TargetID = target:GetTargetIndex(0); -- 0 is target, 1 is subtarget?
                     NameColor = '|cff00ffff|';
                     TarStar = ' ';
-                    if ((ID == TargetID or (party:GetMemberServerId(x) == ATSI and ATA == 1)) and elsewhere == false) then 
-                        if (party:GetMemberServerId(x) == ATSI and ATA == 1) then -- some reason changing combat targets triggers purple on player.
-                            if(target:GetTargetIndex(1) or target:GetIsSubTargetActive() == 1) then -- Not sure why I made that a boolean? Forgot.
-                                NameColor = '|cffaf4be2|';
-                                TarStar = '|cffff69B4|*';
-                            end
+                    if ((ID == TargetID or GetStPartyIndex() == x) and elsewhere == false) then 
+                        if (GetStPartyIndex() == x) then
+                            NameColor = '|cffaf4be2|';
+                            TarStar = '|cffff69B4|*';
                         elseif (ID == TargetID and ID ~= 0) then
                             NameColor = '|cffffff00|';
                         end
@@ -1337,12 +1346,10 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                                 local TargetID = target:GetTargetIndex(0); -- 0 is target, 1 is subtarget?
                                 NameColor = '|cff00ffff|';
                                 TarStar = ' ';                          
-                                if ((ID == TargetID or (party:GetMemberServerId(x) == ATSI and ATA == 1)) and elsewhere == false) then
-                                    if (party:GetMemberServerId(x) == ATSI and ATA == 1) then -- some reason changing combat targets triggers purple on player.
-                                        if(target:GetTargetIndex(1) or target:GetIsSubTargetActive() == 1) then 
-                                            NameColor = '|cffaf4be2|';
-                                            TarStar = '|cffff69B4|*';
-                                        end
+                                if ((ID == TargetID or GetStPartyIndex() == x) and elsewhere == false) then 
+                                    if (GetStPartyIndex() == x) then 
+                                        NameColor = '|cffaf4be2|';
+                                        TarStar = '|cffff69B4|*';
                                     elseif (ID == TargetID and ID ~= 0) then
                                         NameColor = '|cffffff00|';
                                     end
@@ -1435,7 +1442,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                                     ZoneName = " "..ZoneName;
                                 end
                                 ZoneName = string.sub(ZoneName, 1, 21);
-                                Output = (' '..NameColor..Name..leadstar..'| |cc0c0c0c0| '..tostring(ZoneName)..'|r  ');
+                                Output = (' '..NameColor..Name..leadstar..'     | |cc0c0c0c0| '..tostring(ZoneName)..'|r  ');
                                 ascii.font_f[x].text = tostring(Output);
                             end	    
 
@@ -1588,7 +1595,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                 MobLvlStr = " "..MobLvlStr;
             end
           
-            OutEig = '  |cffffffff|'..' LVL: '..tostring(MobLvlStr)..'   '..MobJob..'|cffffffff|  | '..MobType..' '..MobDefEva; --..'| ID: '..TarID;
+            OutEig = '  |cffffffff|'..' LVL: '..tostring(MobLvlStr)..'   '..MobJob..'|cffffffff|  | '..MobType..' '..MobDefEva; 
             while MobName:len() < 47 do 
                 if (centerjust == true) then
                     MobName = " "..MobName; 
@@ -1810,10 +1817,10 @@ ashita.events.register('d3d_present', 'present_cb', function ()
         local HPCheck = math.floor(HPValue / (100 / 50));
         local HPColor = '';
         local selffontsize = ascii.settings.selffont.font_height;
-        local SelfTP = party:GetMemberTP(0); -- playernumber
-        local SelfHP = party:GetMemberHP(0); -- playernumber
+        local SelfTP = party:GetMemberTP(0); 
+        local SelfHP = party:GetMemberHP(0); 
         local SelfHPMax = player:GetHPMax();
-        local SelfMP = party:GetMemberMP(0); -- playernumber
+        local SelfMP = party:GetMemberMP(0); 
         local SelfMPMax = player:GetMPMax();
         local SelfStr = '                   '; -- Let's go some spaces in for Pet Name room
         local SelfTPStr = '    '; -- 4 Characters
