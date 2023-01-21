@@ -47,6 +47,7 @@
             [19] = 'What do you get when you cross a donkey with a dhalmel? An Elvaan!';
             [20] = 'Hey! Listen!';
             [21] = 'Hey! Listen!';
+            [22] = 'Solentus is an idiot...';
         },
         [3] = { -- Thief Catch Messages
             [1] =  'Not me, idiot!';
