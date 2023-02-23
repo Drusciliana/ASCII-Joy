@@ -41,7 +41,6 @@
         -- Now incorporates the "checker" addon, showing live data of Monster Level, Defense, Evasion modifiers 
 		(after small delay as to not flood the server). Doesn't work on Notorious Monsters (by design).
 	-- If you currently use the "checker" addon, you can disable/unload it to stop chat line spam as this triggers it.
-        
         -- Now tracks if the targetted monster is casting or using a spell with "mon-info" option enabled.
         -- Now can track who the targetted monster has aggro on with "aggro" options enabled. 
         -- Now can track what the monster is doing, so you can try and interrupt and not have to stare at chat spam.
