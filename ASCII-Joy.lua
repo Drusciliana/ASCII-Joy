@@ -22,13 +22,13 @@
 *
 * No warranties are given.
 ]]--
---------------------------------------------------------------------------------------------------------------------------
--- Credit to Vicrelant for the data files for mobs and to Atom0s for his guidance and using his addons as a base for this.
---------------------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------------------------
+-- Credit and Thanks to Atom0s. Solentus, Almavivaconte, Vicrelant, and Thorny for all of their help, inspiration, and guideance.
+---------------------------------------------------------------------------------------------------------------------------------
 
 addon.author  = 'Drusciliana';
 addon.name    = 'ASCII-Joy';
-addon.version = '1.4.2';
+addon.version = '1.5.0';
 addon.desc = 'Relive the glory days before there were graphics, when MUDs were still cool, all while having a somewhat functional UI!';
 addon.link = 'Discord name is just plain old D. (with the period), #2154 if that helps. Stay on top of updates! https://github.com/Drusciliana/ASCII-Joy';
 
@@ -49,13 +49,16 @@ T{
     monster =   true, 		
     moninfo =   false, 
     monabov =   true,
+    aggro =     false;
     tarplay =   false,
     playwin =   true,
-    exp =       false,
+    exp =       true,
     zilda =     false,
     grow =      true,
     cast =      true,
     fairy =     true,
+    claim =     false,
+    debug =     false,
     offset =    -4
     },
     partyfont = T{
@@ -176,7 +179,7 @@ T{
         }
     },
 };
--- Stuff to stop the for loop in finding mobs. Put it out here so it doesn't get overwritten every render call when the loop stops.
+------------------------------------------------------------------- Globals! They all have a use out here.
 local MobStr = ''; 
 local MobName = ''; 
 local MobAggro = '';
@@ -185,36 +188,26 @@ local MobWeak = '             Monster Info unavailable';
 local LastMob = 0;
 local MobLvl = 0; 
 local MobDefEva ='(   ????   )';
-local MobType = '     ???     ';
+local MobType = '     ???     '; -- The Too weak, Even prey, etc...
 local MobLvlStr = '???';
-local SneakAttack = false;
-local CheckLock = true; 
+local UnableToSee = false;
+local SneakAttack = false; -- Obvious.
+local CheckLock = 0; -- Part of Latch on checker.
+local CheckedTar = 0;
 local GotPacket = true; -- Latch so we don't flood server with packets.
-local PetTargetsID = 0;
-local checker = T{ ---- From Atom0s' checker addon.
-    conditions = T{
-        [0xAA] = '+EVA, +DEF',
-        [0xAB] = '    +EVA  ',
-        [0xAC] = '+EVA, -DEF',
-        [0xAD] = '    +DEF  ',
-        [0xAE] = '          ',
-        [0xAF] = '    -DEF  ',
-        [0xB0] = '-EVA, +DEF',
-        [0xB1] = '    -EVA  ',
-        [0xB2] = '-EVA, -DEF',	
-	},
-    types = T{
-        [0x40] = ' |cffa0a0a0|    Too Weak|r',
-        [0x41] = ' |cff00ff00|  Incr. Easy|r',
-        [0x42] = ' |cff00a000|   Easy Prey|r',
-        [0x43] = ' |cffffffff|Decent Chal.|r',
-        [0x44] = ' |cffa0a000|  Even Match|r',
-        [0x45] = ' |cffffff00|       Tough|r',
-        [0x46] = ' |cffa00000|  Very Tough|r',
-        [0x47] = ' |cffff0000| Incr. Tough|r',
-    },
-};
--------------------------------------------------------------------
+local PetTargetsID = 0; -- Obvious.
+local TargetsTarget = 0; -- Target Index of Monster's target from Monster Window.
+local Listening = 0; -- Latches the OSTime, so we don't flood server with packets.
+local Assisting = 0; -- This only blocks the aggro packet from going out. /assist never actually sends a packet if target is monster or you have no target? Make it on a timer then.
+local SubIndex = 0; -- For Changing targets. Comparison to ChangeTar in outgoing check.
+local MainIndex = 0; -- Index of what the Monster Window is looking at. Not neccessarily TargetIndex(0) or TargetIndex(1).
+local GotMob = 0; -- Monster ServerID from Monster Window. We will leave this for our checker function packet sender validation.
+local GotMobAct = 0; -- See above. Also part of other things. Must leave this.
+local GotMobActParam = 0; -- See above. See above.
+local Interrupt = false; -- Obvious.
+local MarkTickSee = 0; -- For Unable to See checks.
+local PetDebuffs = 0; -- Obvious.
+local OSTime = 0; -- Obvious.
 local tick = 0;
 local afktimer = 0;
 local FairyPosX = 0;
@@ -226,6 +219,15 @@ local Progress = 0; -- For Cast Bar. Can't find variable to show if we are casti
 local LastZone = 9999; -- To remember when we are zoning.
 local mb_data = {};
 local arraySize = 0;
+local DatFound = false;
+local SteadyW = false;
+local DEBUG1 = nil; -- If there are anymore than 3 of each of these when using Ctrl-F to find, then it means it is in use somewhere.
+local DEBUG2 = nil; --
+local DEBUG3 = nil; --
+local DEBUG4 = nil; --
+local PartyHPLast = {};
+local PartyTPLast = {};
+local PartyMPLast = {};
 local HeartNum = {};
 local HeartContainer = 
 	--Lame attempt at an array (only way I could get new primitive library to work. PrimitiveManager handled textures differently it seems).
@@ -256,6 +258,38 @@ T{
     [1] = {},
     [2] = {}
 }
+
+local matchStrings = T{ -- Thanks, Thorny.
+    '>> /ja',
+    '...A command error',
+    '>> /equipset',
+    '>> /ma',
+    '>> /ws'
+};
+
+local checker = T{ ---- From Atom0s' checker addon.
+    conditions = T{
+        [0xAA] = '+EVA, +DEF',
+        [0xAB] = '    +EVA  ',
+        [0xAC] = '+EVA, -DEF',
+        [0xAD] = '    +DEF  ',
+        [0xAE] = '          ',
+        [0xAF] = '    -DEF  ',
+        [0xB0] = '-EVA, +DEF',
+        [0xB1] = '    -EVA  ',
+        [0xB2] = '-EVA, -DEF',	
+	},
+    types = T{
+        [0x40] = ' |cffa0a0a0|    Too Weak|r',
+        [0x41] = ' |cff00ff00|  Incr. Easy|r',
+        [0x42] = ' |cff00a000|   Easy Prey|r',
+        [0x43] = ' |cffffffff|Decent Chal.|r',
+        [0x44] = ' |cffa0a000|  Even Match|r',
+        [0x45] = ' |cffffff00|       Tough|r',
+        [0x46] = ' |cffa00000|  Very Tough|r',
+        [0x47] = ' |cffff0000| Incr. Tough|r',
+    },
+};
 
 local jobs = T{
 	[0]  = '   ', -- Some Trust party npc's on some servers actually are set to 0 for job or subjob. 
@@ -292,9 +326,9 @@ local ascii = T{                    -- FONT INFORMATION, WORKING VARIABLES.
     font_f = T{ }, -- Party	Mana
     font_g = T{ }, -- Party HP
     font_h = T{ }, -- Party Space
---  font_i
---  font_j
---  font_k
+    font_i = nil, -- Claim HP
+    font_j = nil, -- Claim Name
+    font_k = nil, -- Monster Target of Target Bar
     font_l = nil, -- Monster Checker
     font_m = nil, -- Monster HP
     font_n = nil, -- Monster Name
@@ -307,7 +341,7 @@ local ascii = T{                    -- FONT INFORMATION, WORKING VARIABLES.
     font_u = nil, -- Player HP/Mana/TP
     font_v = nil, -- Fairy Message
     font_w = nil, -- Pet Target
---  font_x
+    font_x = nil, -- Monster Action Bar
 --  font_y
 --  font_z
 	-------
@@ -316,7 +350,6 @@ local ascii = T{                    -- FONT INFORMATION, WORKING VARIABLES.
 ------------ END Global Variables
 
 local function update_settings(s)
-
     if (s ~= nil) then
         ascii.settings = s;
     end
@@ -335,6 +368,18 @@ local function update_settings(s)
     end
     if (ascii.font_e ~= nil) then
         ascii.font_e:apply(ascii.settings.partyfont);
+    end
+    if (ascii.font_i ~= nil) then
+        ascii.font_i:apply(ascii.settings.partyfont);
+    end
+    if (ascii.font_j ~= nil) then
+        ascii.font_j:apply(ascii.settings.partyfont);
+    end
+    if (ascii.font_k ~= nil) then
+        ascii.font_k:apply(ascii.settings.monsterfont);
+    end
+    if (ascii.font_x ~= nil) then
+        ascii.font_x:apply(ascii.settings.monsterfont);
     end
     if (ascii.font_l ~= nil) then
         ascii.font_l:apply(ascii.settings.monsterfont);
@@ -417,8 +462,17 @@ end
 
 local function SendCheckPacket(mobIndex)
     local mobId = AshitaCore:GetMemoryManager():GetEntity():GetServerId(mobIndex);
+    if (mobId ~= GotMob) then -- Hopefully won't send packets out looking for the wrong mob.
+        return;
+    end
     local checkPacket = struct.pack('LLHHBBBB', 0, mobId, mobIndex, 0x00, 0x00, 0x00, 0x00, 0x00):totable();
     AshitaCore:GetPacketManager():AddOutgoingPacket(0xDD, checkPacket);
+end
+
+local function SendAssistPacket(mobIndex)
+    local mobId = AshitaCore:GetMemoryManager():GetEntity():GetServerId(mobIndex);
+    local assistPacket = struct.pack('bbHIhhhhiii', 0x1A, 0x0E, 0, mobId, mobIndex, 0x0C, 0x00, 0x00, 0x00, 0x00, 0x00):totable();
+    AshitaCore:GetPacketManager():AddOutgoingPacket(0x1A, assistPacket);
 end
 
 local function GetEntityByServerId(ServerID)
@@ -443,15 +497,15 @@ local function GetStPartyIndex() -- From Thorny. Thanks.
     end
 end
 
-local function GetFairyMessage (mestype)
+local function GetFairyMessage (msgtype)
     local Message = 'Blah!';
     local count = 0;
     local _, fairy_data = pcall(require,'data.'..tostring('Fairy'));
     if (fairy_data == nil or type(fairy_data) ~= 'table') then
         fairy_data = { };
     else
-        count = #fairy_data[mestype];
-        Message = fairy_data[mestype][math.random(1,count)];
+        count = #fairy_data[msgtype];
+        Message = fairy_data[msgtype][math.random(1,count)];
     end
     return Message;
 end
@@ -504,11 +558,13 @@ ashita.events.register('load', 'load_cb', function ()
 -- Exp Bar label
     ascii.font_d = fonts.new(ascii.settings.expfont);
 -- Monster Window labels
+    ascii.font_k = fonts.new(ascii.settings.monsterfont);
+    ascii.font_x = fonts.new(ascii.settings.monsterfont);
     ascii.font_l = fonts.new(ascii.settings.monsterfont);
     ascii.font_m = fonts.new(ascii.settings.monsterfont);
     ascii.font_n = fonts.new(ascii.settings.monsterfont);
     ascii.font_o = fonts.new(ascii.settings.monsterfont);
-    ascii.font_p = fonts.new(ascii.settings.subtarfont);
+    ascii.font_p = fonts.new(ascii.settings.subtarfont); -- This is subtarfont, NOT monsterfont then thought it's in monster window.
 ---- Player Window labels
     ascii.font_q = fonts.new(ascii.settings.selffont);
     ascii.font_r = fonts.new(ascii.settings.selffont);
@@ -521,9 +577,14 @@ ashita.events.register('load', 'load_cb', function ()
     ascii.font_a = fonts.new(ascii.settings.all1font);
     ascii.font_b = fonts.new(ascii.settings.all2font);
     ascii.font_e = fonts.new(ascii.settings.partyfont);
+    ascii.font_i = fonts.new(ascii.settings.partyfont);
+    ascii.font_j = fonts.new(ascii.settings.partyfont);
     for x = 0, 17 do
         ascii.font_f[x] = fonts.new(ascii.settings.partyfont);
         ascii.font_h[x] = fonts.new(ascii.settings.partyfont);
+        PartyHPLast = 0;
+        PartyTPLast = 0;
+        PartyMPLast = 0;
     end
     for x = 0, 5 do -- no font_g in alliance windows, don't waste the memory making more than 5.
         ascii.font_g[x] = fonts.new(ascii.settings.partyfont);
@@ -531,13 +592,22 @@ ashita.events.register('load', 'load_cb', function ()
 
 -- Get Info and what not for Mobs upon loading the addon.
     ZoneIDStart = AshitaCore:GetMemoryManager():GetParty():GetMemberZone(0);
-    _, mb_data = pcall(require,'data.'..tostring(ZoneIDStart));
-    if (mb_data == nil or type(mb_data) ~= 'table') then
-        mb_data = { };
+    if(ZoneIDStart > 0) then
+        _, mb_data = pcall(require,'data.'..tostring(ZoneIDStart));
+        if (mb_data == nil or type(mb_data) ~= 'table') then
+            mb_data = { };
+            arraySize = 0;
+            DatFound = false;
+        else
+            arraySize = #(mb_data);
+            DatFound = true;
+        end
+    else
+        arraySize = 0;
+        DatFound = false;
     end
-    arraySize = #(mb_data);
 
-    print(chat.header(addon.name):append(chat.message('Please type /ASCII-Joy to bring up the *extensive* addon menu.')));
+    print(chat.header(addon.name):append(chat.message('Please type /ASCII-Joy help to bring up the -*extensive*- option menu.')));
 end);
 
 ----------------------------------------------------------------------------------------------------
@@ -567,6 +637,18 @@ ashita.events.register('unload', 'unload_cb', function ()
     if (ascii.font_e ~= nil) then
 	    ascii.font_e:destroy();
 	    ascii.font_e = nil;
+    end
+    if (ascii.font_i ~= nil) then
+	    ascii.font_i:destroy();
+	    ascii.font_i = nil;
+    end
+    if (ascii.font_j ~= nil) then
+	    ascii.font_j:destroy();
+	    ascii.font_j = nil;
+    end
+    if (ascii.font_k ~= nil) then
+	    ascii.font_k:destroy();
+	    ascii.font_k = nil;
     end
     if (ascii.font_l ~= nil) then
 	    ascii.font_l:destroy();
@@ -615,6 +697,10 @@ ashita.events.register('unload', 'unload_cb', function ()
     if (ascii.font_w ~= nil) then
 	    ascii.font_w:destroy();
 	    ascii.font_w = nil;
+    end
+    if (ascii.font_x ~= nil) then
+	    ascii.font_x:destroy();
+	    ascii.font_x = nil;
     end
     if (ascii.font_f ~= nil) then
 	    ascii.font_f:each(function (v, _)
@@ -756,6 +842,7 @@ local function FairyFun(playerent)
             if (FairyType == 3) then
                 FairyTime = FairyTime / 2;
             end
+
             if (FairySafeTime >= (FairyTime / 10)) then
                 FairySafeTime = 0;
                 FairyMessage = GetFairyMessage(FairyType + 1);
@@ -852,9 +939,9 @@ ashita.events.register('d3d_present', 'present_cb', function ()
     local target    = AshitaCore:GetMemoryManager():GetTarget();  
     local player    = AshitaCore:GetMemoryManager():GetPlayer();
     local playerent = GetPlayerEntity(); 
-
     local offset = ascii.settings.options.offset;
     local solo = 0; 
+    local partytableSID = T{};
 
 		--** Hopefully cleans and fixes everything up while zoning or loading
     if (player:GetMainJobLevel() == 0 or player == nil or playerent == nil) then 
@@ -881,6 +968,9 @@ ashita.events.register('d3d_present', 'present_cb', function ()
         ascii.font_c.visible = false;
         ascii.font_d.visible = false;        
         ascii.font_e.visible = false;
+        ascii.font_i.visible = false;
+        ascii.font_j.visible = false;
+        ascii.font_k.visible = false;
         ascii.font_l.visible = false;
         ascii.font_m.visible = false;
         ascii.font_n.visible = false;
@@ -893,6 +983,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
         ascii.font_u.visible = false;
         ascii.font_v.visible = false;
         ascii.font_w.visible = false;
+        ascii.font_x.visible = false;
         return;
     else
         ascii.font_a.locked = false; --
@@ -904,22 +995,41 @@ ashita.events.register('d3d_present', 'present_cb', function ()
         ascii.font_p.locked = false; --
         ascii.font_q.locked = false; -- Oh well.
     end 
-		  -- *** START HERE ***
-    tick = tick + 1;
-    if (tick >= 30) then -- Not sure why I use greater than. Maybe bad feeling tick will increment too soon one day. Haha.
-        CheckLock = false; -- We don't want to flood the server too much, only unlock the Check every 30 renders.
-       	tick = 0;
+-- *** START HERE ***
+    ---- Our Timing Mechanisms
+    OSTime = os.time();
+    if (OSTime >= (Listening + 2)) then -- We don't want to flood the server too much, only unlock the Check every 2 seconds.
+        Listening = 0; 
     end
 
-    for x = 0, 5 do --** Alliance may be different 
-        if (party:GetMemberIsActive(x) == 1) then
-            solo = solo + 1;
+    if (OSTime >= (CheckLock + 1)) then -- More important to check for listening than checking.
+        CheckLock = 0;
+    end
+
+    if (OSTime >= (Assisting + 2)) then -- We must not have received the packet, so turn this off.
+        Assisting = 0;
+    end
+
+    tick = tick + 1; -- Keep the ticks for the animations of fairy and the flashings.
+     if (tick >= 30) then -- Not sure why I use greater than. Maybe bad feeling tick will increment too soon one day. Haha.
+       	tick = 0;
+    end
+    ------------
+
+    -- General party-based housekeeping.
+    for x = 0, 17 do 
+        if (x < 6) then -- only check 0 through 5 to see if we are solo.
+            if (party:GetMemberIsActive(x) == 1) then
+                solo = solo + 1; -- Never put anything here that may break the for loop. We need partytableSID filled out.
+            end
         end
+        partytableSID[x] = party:GetMemberServerId(x);
     end
 
     if (ascii.settings.options.fairy == true and ascii.settings.options.zilda == true) then
         FairyFun(playerent);
     end 
+    ------------
 				--** Changing zones? Pull a new data file
     ZoneIDStart = party:GetMemberZone(0);
 	----** WE NEED DATAFILES EVEN WITHOUT MONSTER WINDOW TO COMPARE NPC's, MONSTERS, OBJECTS, PLAYERS, etc. FOR TARGET WINDOW! MAYBE?
@@ -931,10 +1041,19 @@ ashita.events.register('d3d_present', 'present_cb', function ()
   	        _, mb_data = pcall(require,'data.'..tostring(ZoneIDStart));
 	        if (mb_data == nil or type(mb_data) ~= 'table') then
 	            mb_data = { };
-	        end
-	        arraySize = #(mb_data);
+                arraySize = 0;
+                DatFound = false;
+            else
+                arraySize = #(mb_data);
+                DatFound = true;
+            end
+            PetDebuffs = 0; -- Zoning makes this wonky. Makes a lot of things wonky.
+            SteadyW = false; -- Zoning erases this.
 	        LastZone = ZoneIDStart; -- Make these match to compare zoning.
 	        save_everything();  -- Let's also save when we zone.
+            Assisting = 0; -- Let's set all of our locks to 0 if we are zoning.
+            Listening = 0; --
+            CheckLock = 0; --
 	    end
     end
 
@@ -943,10 +1062,9 @@ ashita.events.register('d3d_present', 'present_cb', function ()
         local CastBar = AshitaCore:GetMemoryManager():GetCastBar();
         local CastPer = 100 * CastBar:GetPercent();
         local CastType = CastBar:GetCastType();
-                 --      |123456789012345678901234567890
-        local CastStr = '|_____________________________|cffffffff||'; -- It disappears when it's filled, so only show 29 spaces or it will look like a blank one is always there.
+        local CastColor = '|cffff1493|';         
+        local CastStr = ''
         local CastChk = math.floor(CastPer / (100/30)); -- DENOMINATOR OF FRACTION IS HOW MANY SQUARES WE USE FOR BAR!!!!
-        local CastColor = '|cffff1493|';
     	
         if (CastType ~= 0) then
             CastColor = '|cffffffff|';
@@ -957,10 +1075,10 @@ ashita.events.register('d3d_present', 'present_cb', function ()
         elseif (CastType ~= 3) then
             CastColor = '|cffff00ff|';
         end
-
-        CastStr = string.gsub(CastStr,'_',CastColor..'@',CastChk);
+                          --      |123456789012345678901234567890
+        CastStr = '|'..CastColor..'_____________________________|cffffffff||'  -- It disappears when it's filled, so only show 29 spaces or it will look like a blank one is always there.
+        CastStr = string.gsub(CastStr,'_','@',CastChk);
 	    CastStr = string.gsub(CastStr,'_',' ');
-
         if (CastPer < 100 and Progress ~= CastPer) then  -- VVV
             Progress = CastPer; -- Only way to see if the Cast Bar is actually moving, that I can think of.
             ascii.font_c.visible = true;
@@ -979,7 +1097,6 @@ ashita.events.register('d3d_present', 'present_cb', function ()
             local ExpCurr = player:GetExpCurrent();
             local ExpPer = 100 * (ExpCurr/ExpNeed);
             local ExpChk = math.floor(ExpPer / (100/100)); -- DENOMINATOR OF FRACTION IS HOW MANY SQUARES WE USE FOR BAR!!!!
-
             ExpStr = string.gsub(ExpStr,'_','#',ExpChk);
             ExpStr = string.gsub(ExpStr,'_',' ');
             ascii.font_d.visible = true;
@@ -1002,6 +1119,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
         local EndNumber = 5;
         local Order = 1;
         local First = -1;
+
         if (ascii.settings.options.order == true) then
             StartNumber = 5;
             EndNumber = 0;
@@ -1010,7 +1128,6 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 
         for x = StartNumber, EndNumber, Order do  
             elsewhere = true;
-    
             if (party:GetMemberIsActive(x) == 0) then
                 ascii.font_f[x].visible = false;
                 ascii.font_g[x].visible = false;
@@ -1019,19 +1136,20 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                 if (party:GetMemberZone(0) == party:GetMemberZone(x)) then 
                     elsewhere = false;  
                 end
-        ----- Setup Party Window (NEATEST I THINK I CAN MAKE IT, WORKS BEST ON 10 POINT FONTS at 1920x1080)
+        ----- Setup Party Window (NEATEST I THINK I CAN MAKE IT, WORKS BEST ON 14 POINT FONTS at 1920x1080, at least for me.)
 	    ----- "cur" is Health, "new" is Mana, "spc" is blank line between party members -- MAYBE PUT SOME SORT OF FOUND CHECK FOR THE FIRST PERSON IF GOING DESCENDING ORDER.
                 if (spcy == 0) then -- Maybe make this spcy == 0, as it would only be 0 for the first player in the group, then it would be set, was x == 0;
                     spcy = ascii.font_e.GetPositionY();
                 else
                     spcy = cury - fontsize - offset;
                 end
+
                 if (First == -1) then
                     First = x;
                 end
+
                 newy = spcy - fontsize - offset;
                 cury = newy - fontsize - offset;               
-                
                 ascii.font_f[x].position_x = ascii.font_e.position_x;
                 ascii.font_f[x].position_y = cury;
                 ascii.font_g[x].position_x = ascii.font_e.position_x;
@@ -1046,12 +1164,25 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                 local HPCheck = math.floor(HPValue / (100/20)); -- DENOMINATOR OF FRACTION IS HOW MANY SQUARES WE USE FOR BAR!!!!
                 local HealthStr = '';
                 local HPColor = '';
-                local hResult = '____________________|cffffffff|';
+                local hResult = '';
                 local NameColor = '|cff00ffff|';
                 local Output = '';
                 local OutTwo = '';
                 local OutThr = '';
                 local TarStar = ' ';
+                local Mana = party:GetMemberMP(x);
+                local MaValue = party:GetMemberMPPercent(x);
+                local MaCheck = math.floor(MaValue / (100/13)); -- DENOMINATOR OF FRACTION IS HOW MANY SQUARES WE USE FOR BAR!!!!
+                local mResult = '';
+                local MaColor = '|r';
+                local TP = party:GetMemberTP(x);
+                local TPColor = '|c77777777|';
+                local MJob = '';
+                local SJob = '';
+                local TJob = ''; -- Total, Sum of M and S.
+                local ManaStr = '';
+                local TPValue = '';
+ 
     ----  Name Color Matching if Target is in Party
                 if (target == nil) then
                     NameColor = '|cff00ffff|';
@@ -1060,6 +1191,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                     local ATA = target:GetActionTargetActive();
                     local ATSI = target:GetActionTargetServerId();
                     local TargetID = target:GetTargetIndex(0); -- 0 is target, 1 is subtarget?
+
                     NameColor = '|cff00ffff|';
                     TarStar = ' ';
                     if ((ID == TargetID or GetStPartyIndex() == x) and elsewhere == false) then 
@@ -1089,7 +1221,8 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                 if (HPValue <= 0) then
                     hResult = '        |cffaf0000|DEAD        |r';
                 else
-                    hResult = string.gsub(hResult,'_',HPColor..'#',HPCheck);	
+                    hResult = HPColor..'____________________|cffffffff|';
+                    hResult = string.gsub(hResult,'_','#',HPCheck);	
                     hResult = string.gsub(hResult,'_',' ');
                 end
 
@@ -1098,26 +1231,12 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                     HealthStr = " "..HealthStr; 
                 end
 
-    ---- Format Player names to 10 characters
+    ---- Format Player names to fit.
                 while Name:len() < 9 do 
                     Name = " "..Name; 
                 end
                 Name = string.sub(Name, 1, 9);
 		
-    -------- Get Party Mana, TP, Class
-                local Mana = party:GetMemberMP(x);
-                local MaValue = party:GetMemberMPPercent(x);
-                local MaCheck = math.floor(MaValue / (100/13)); -- DENOMINATOR OF FRACTION IS HOW MANY SQUARES WE USE FOR BAR!!!!
-                local mResult = '|r|_____________|cffffffff||';
-                local MaColor = '|r';
-                local TP = party:GetMemberTP(x);
-                local TPColor = '|c77777777|';
-                local MJob = '';
-                local SJob = '';
-                local TJob = ''; -- Total, Sum of M and S.
-                local ManaStr = '';
-                local TPValue = '';
-
     ---- Get Party Members' Job(s)
                 if (party:GetMemberMainJob(x) == nil or party:GetMemberMainJob(x) == 0 or party:GetMemberMainJob(x) > 22) then
                     TJob = 'XXX/XXX';
@@ -1126,6 +1245,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                     if (party:GetMemberSubJobLevel(x) ~= nil and party:GetMemberSubJobLevel(x) > 0 and party:GetMemberSubJob(x) ~= nil) then
                         SJob = '/'..jobs[party:GetMemberSubJob(x)];
                     end
+
                     TJob = MJob..SJob;
     	            while TJob:len() < 7 do 
                         TJob = " "..TJob; 
@@ -1143,7 +1263,13 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                 while ManaStr:len() < 3 do 
                     ManaStr = " "..ManaStr; 
                 end
-                mResult = string.gsub(mResult,'_',MaColor..'@',MaCheck); 
+
+                if (Mana < 1000) then
+                    ManaStr = ManaStr..' ';
+                end
+
+                mResult = '|r|'..MaColor..'_____________|cffffffff||';
+                mResult = string.gsub(mResult,'_','@',MaCheck); 
                 mResult = string.gsub(mResult,'_',' ');
 
     ---- Get Color for TP
@@ -1174,6 +1300,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                     while OutThr:len() < 35 do
                         OutThr = " "..OutThr;
                     end
+
                     OutThr = string.sub(OutThr, 1, 35);
                     OutThr = " "..OutThr.." ";
                     ascii.font_e.visible = true;
@@ -1200,20 +1327,22 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                         if (party:GetMemberMainJob(x) == 0 or party:GetMemberMainJob(x) > 22) then
                             TJob = ' ANON? ';
                         end
-                        Output = (TarStar..NameColor..Name..leadstar..'|'..hResult..'||cff00ff00|'..HealthStr);
-                        OutTwo = (TPColor..'     '..TPValue..'  '..mResult..'|cffff69b4|'..ManaStr..' |cffffffff|'..TJob);
+
+                        Output = TarStar..NameColor..Name..leadstar..'|'..hResult..'||cff00ff00|'..HealthStr;
+                        OutTwo = TPColor..'     '..TPValue..'  '..mResult..'|cffff69b4|'..ManaStr..'|cffffffff|'..TJob;
                         ascii.font_f[x].text = tostring(Output);
                         ascii.font_g[x].text = tostring(OutTwo);
                     else 
                         if (ZoneName == nil) then
                             ZoneName = 'BROKEN PLAYER ZONE';
                         end
+
                         while ZoneName:len() < 21 do
                             ZoneName = " "..ZoneName;
                         end
-                        ZoneName = string.sub(ZoneName, 1, 21);
 
-                        Output = (' '..NameColor..Name..leadstar..'| |cc0c0c0c0| '..tostring(ZoneName)..'|r  ');
+                        ZoneName = string.sub(ZoneName, 1, 21);
+                        Output = ' '..NameColor..Name..leadstar..'| |cc0c0c0c0| '..tostring(ZoneName)..'|r  ';
                         OutTwo = '                                     ';
                         ascii.font_f[x].text = tostring(Output);
                         ascii.font_g[x].text = tostring(OutTwo);
@@ -1225,11 +1354,16 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                     while OutThr:len() < 35 do
                         OutThr = " "..OutThr;
                     end
+
                     OutThr = string.sub(OutThr, 1, 35);
                     OutThr = " "..OutThr.." ";
                     ascii.font_h[x].visible = false;
-                    ascii.font_e.visible = true;
-                    ascii.font_e.text = OutThr;
+                    if (solo <= 1 and ascii.settings.options.solo == true) then -- Are we solo with Solo option toggled?
+                        ascii.font_e.visible = false;
+                    else
+                        ascii.font_e.visible = true;
+                        ascii.font_e.text = OutThr;
+                    end
                 else
                     OutThr = '                                     ';
                     ascii.font_e.visible = true; -- Don't need to have a text set for font_e since it should have been set when it was 0.
@@ -1237,13 +1371,85 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                     ascii.font_h[x].text = tostring(OutThr);
                 end
             end
+
+            if (ascii.settings.options.claim == true and DatFound == true) then
+                local ClaimMob = nil; 
+                local TarMob = playerent; -- Need a valid Entity stub. Setting to nil makes it not work sometimes? Weird.
+                local ClaimHPP = 0;
+                local SID = 0;
+                local ClaimResult = '||cffff0000|___________________________________|r|';
+                local TarID = 0;         --      12345678901234567890123456789012345
+                local ClaimName = '';
+                local ClaimCheck = 0;
+                
+                if (target ~= nil) then
+                    if (target:GetIsSubTargetActive() > 0) then
+                        TarID = target:GetTargetIndex(1); ---- If the target has a sub ID, use that and refence that instead.
+                    else
+                        TarID = target:GetTargetIndex(0);
+                    end
+                    TarMob = GetEntity(TarID);
+                else
+                    TarMob = playerent; -- Need a valid Entity stub. Setting to nil makes it not work sometimes? Weird.  
+                end
+
+                if (arraySize > 0) then
+                    for x = 1, arraySize do -- Start the frame eating loop. I don't like it this way. If I put a no-target check, healers not targetting anything won't see the claim.
+                        ClaimMob = GetEntity(x);
+                        if (ClaimMob ~= nil) then
+                            if (ClaimMob.HPPercent > 0 and ClaimMob.ClaimStatus > 0 and (TarMob == nil or TarMob.TargetIndex ~= ClaimMob.TargetIndex)) then
+                                for _, value in pairs(partytableSID) do
+                                    if (value == ClaimMob.ClaimStatus) then
+                                        ClaimHPP = ClaimMob.HPPercent;
+                                        ClaimName = ClaimMob.Name;
+                                        while ClaimName:len() < 37 do
+                                            ClaimName = " "..ClaimName;
+                                        end
+    
+                                        break; -- Let's break and keep ClaimMob assigned.
+                                    end
+                                end
+                            else
+                                ClaimMob = nil; -- Keep making this nil in case the loop ends or breaks without valid ClaimMob.
+                            end
+                        else
+                            ClaimMob = nil; -- Keep making this nil in case the loop ends or breaks without valid ClaimMob.
+                        end
+
+                        ClaimMob = nil; -- Keep making this nil in case the loop ends or breaks without valid ClaimMob.
+                    end
+                end
+
+                ascii.font_i.position_x = ascii.font_e.position_x;
+                ascii.font_i.position_y = ascii.font_e.position_y + fontsize + offset;
+                ascii.font_j.position_x = ascii.font_e.position_x;
+                ascii.font_j.position_y = ascii.font_i.position_y + fontsize + offset; -- this is font_i to shift font_j lower than font_i.
+
+                if (ClaimMob ~= nil) then -- We draw the lines now that our target isn't what we have claimed.
+                    ClaimCheck = math.floor(ClaimHPP / (100/35)); -- DENOMINATOR OF FRACTION IS HOW MANY SQUARES WE USE FOR BAR!!!!
+                    ClaimResult = string.gsub(ClaimResult,'_','#',ClaimCheck);	
+                    ClaimResult = string.gsub(ClaimResult,'_',' ');
+
+                    ascii.font_i.text = tostring(ClaimResult);
+                    ascii.font_j.text = tostring(ClaimName);
+
+                    ascii.font_i.visible = true;
+                    ascii.font_j.visible = true;
+                else    
+                    ascii.font_i.visible = false;
+                    ascii.font_j.visible = false;
+                end
+            else
+                ascii.font_i.visible = false;
+                ascii.font_j.visible = false;
+            end
         end -- End Player Party Main Window
         -- ALLIANCE WINDOWS
         if (ascii.settings.options.alliance == true) then
             for z = 1, 2 do
                 local startnum = 0;
                 local endnum = 0;
-                local count = 0;
+--                local count = 0;
                 local offtooff = 0;
                 local increment = 0;
                 local allfirst = -1;
@@ -1252,6 +1458,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                 if (ascii.font_e.font_height == 14) then
                     offtooff = 1;
                 end
+
                 if (ascii.settings.options.order == true) then
                     startnum = 11;
                     endnum = 6;
@@ -1269,38 +1476,33 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                         endnum = 17;
                     end
                 end
-                for x = startnum, endnum, increment do
-                    if (party:GetMemberIsActive(0) ~= x) then 
-                        count = count + 1;
-                    end
-                end
 
-                if (count == 0) then
-                    for x = startnum, endnum, increment do  
-                        ascii.font_f[x].visible = false;
-                        ascii.font_h[x].visible = false;
-                    end
-                    if (z == 1) then
-                        ascii.font_a.visible = false; -- Since there's no players in this Alliance, no sense seeing it.
-                    else
-                        ascii.font_b.visible = false; -- Since there's no players in this Alliance, no sense seeing it.
-                    end
-                else
+                ascii.font_a.visible = false;
+                ascii.font_b.visible = false;
+
+--                if (count == 0) then     -- There was a loop before this that actually added the count. Removed for now until we figure this out, so this is all remarked. 
+                                           -- We will go with the condition if any person was rendered, then render font_a or font_b
+--                    for x = startnum, endnum, increment do        --- PULL THESE FOR LOOPS IN AN INDENT IF THIS ALLIANCE THING GETS FIXED
+--                        ascii.font_f[x].visible = false;
+--                        ascii.font_h[x].visible = false;
+--                    end
+--                else
                     for x = startnum, endnum, increment do  
                         elsewhere = true;
                         if (party:GetMemberIsActive(x) == 0) then 
                             ascii.font_f[x].visible = false;
                             ascii.font_h[x].visible = false;
                         else
-                            if (allfirst == -1) then
+                            if (allfirst == -1) then -- If there is no first in the alliance, make this number the first.
                                 allfirst = x;
                             end
+
                             if (party:GetMemberZone(x) == party:GetMemberZone(0)) then 
                                 elsewhere = false;  
                             end
              ----- Setup Alliance Windows
              ----- "cur" is Health, "new" is Mana, "spc" is blank line between party members
-                            if (spcy == 0) then --(x == allfirst) then -- was startnum
+                            if (spcy == 0) then 
                                 if (z == 1) then
                                     spcy = ascii.font_a.GetPositionY();
                                 else
@@ -1309,7 +1511,12 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                             else
                                 spcy = cury - 20 - offset - offtooff; -- fontsize is 10 and it was doubled in the normal party function. Put in offset to the offset.
                             end
+
                             cury = spcy - 20 - offset - offtooff; -- fontsize is 10 and it was doubled in the normal party function. Put in offset to the offset.
+                            ascii.font_f[x].position_y = cury;
+                            ascii.font_h[x].position_y = spcy;
+                            ascii.font_f[x].font_height = 10;
+                            ascii.font_h[x].font_height = 10;
                             if (z == 1) then
                                 ascii.font_f[x].position_x = ascii.font_a.position_x;
                                 ascii.font_h[x].position_x = ascii.font_a.position_x;
@@ -1318,11 +1525,6 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                                 ascii.font_h[x].position_x = ascii.font_b.position_x;
                             end
 
-                            ascii.font_f[x].position_y = cury;
-                            ascii.font_h[x].position_y = spcy;
-                            ascii.font_f[x].font_height = 10;
-                            ascii.font_h[x].font_height = 10;
-
                             local ZoneName = AshitaCore:GetResourceManager():GetString('zones.names', party:GetMemberZone(x)); 
                             local Name = party:GetMemberName(x);
                             local Health = party:GetMemberHP(x);
@@ -1330,11 +1532,11 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                             local HPCheck = math.floor(HPValue / (100/20)); -- DENOMINATOR OF FRACTION IS HOW MANY SQUARES WE USE FOR BAR!!!!
                             local HealthStr = '';
                             local HPColor = '';
-                            local hResult = '____________________|cffffffff|';
+                            local hResult = '';
                             local NameColor = '|cff00ffff|';
-                            local Output = '';
-                            local OutTwo = '';
-                            local OutThr = '';
+                            local Output = 'XXX';
+                            local OutTwo = 'XXX';
+                            local OutThr = 'XXX';
                             local TarStar = ' ';
               ----  Name Color Matching if Target is in Alliance
                             if (target == nil) then
@@ -1373,7 +1575,8 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                             if (HPValue <= 0) then
                                 hResult = '        |cffaf0000|DEAD        |r';
                             else
-                                hResult = string.gsub(hResult,'_',HPColor..'#',HPCheck);	
+                                hResult = HPColor..'____________________|cffffffff|';
+                                hResult = string.gsub(hResult,'_','#',HPCheck);	
                                 hResult = string.gsub(hResult,'_',' ');
                             end
 
@@ -1382,10 +1585,11 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                                 HealthStr = " "..HealthStr; 
                             end
 
-               ---- Format Player names to 8 characters for Alliance
+               -------- Format Player names to 8 characters for Alliance
                             while Name:len() < 8 do 
                                 Name = " "..Name; 
                             end
+
                             Name = string.sub(Name, 1, 8);
                -------- Get TP for Alliance
                             local TP = party:GetMemberTP(x); 
@@ -1415,11 +1619,6 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                             end
  
                             ascii.font_f[x].visible = true;
-                            if (z == 1) then
-                                ascii.font_a.visible = true;
-                            else
-                                ascii.font_b.visible = true;
-                            end
                             if (HPValue <= 33 and elsewhere == false) then
                                 if (tick >= 15 and party:GetMemberMainJob(x) ~= nil and party:GetMemberMainJob(x) <= 22 and party:GetMemberMainJob(x) ~= 0) then 
                                     ascii.font_f[x].background.color = 0x5fff0000;
@@ -1430,54 +1629,54 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                                 ascii.font_f[x].background.color = ascii.settings.partyfont.background.color;
                             end 
                                                             
-                            if (elsewhere == false and ((party:GetMemberMainJob(x) ~= nil and party:GetMemberMainJob(x) <= 22 and 
+                            if (elsewhere == false and ((party:GetMemberMainJob(x) ~= nil and party:GetMemberMainJob(x) <= 22 and -- This is all for f'ing ANON people. Hate them.
                                     party:GetMemberMainJob(x) ~= 0) or (party:GetMemberMainJob(x) == 0 and party:GetMemberHPPercent(x) > 0))) then  -- Try to put in Zone Name for far away friends
                                 Output = (TarStar..NameColor..Name..leadstar..' '..TPColor..TPValue..'|r|'..hResult..'||cff00ff00|'..HealthStr);
                                 ascii.font_f[x].text = tostring(Output);
+                                if (z == 1) then -- This means a player was actually renderred, therefore we can make the moving title bar visible.
+                                    ascii.font_a.visible = true;
+                                else
+                                    ascii.font_b.visible = true;
+                                end
                             else 
                                 if (ZoneName == nil) then
                                     ZoneName = 'BROKEN PLAYER ZONE';
                                 end
+
                                 while ZoneName:len() < 21 do
                                     ZoneName = " "..ZoneName;
                                 end
+
                                 ZoneName = string.sub(ZoneName, 1, 21);
-                                Output = (' '..NameColor..Name..leadstar..'     | |cc0c0c0c0| '..tostring(ZoneName)..'|r  ');
+                                    Output = ' '..NameColor..Name..leadstar..'     | |cc0c0c0c0| '..tostring(ZoneName)..'|r  ';
                                 ascii.font_f[x].text = tostring(Output);
                             end	    
 
-                            if (x == allfirst) then--(x == 6 or x == 12) then      
+                            if (x == allfirst) then 
                                 if (x < 12) then
                                     OutThr = 'Alliance 1';
                                 else
                                     OutThr = 'Alliance 2';
                                 end
+
                                 while OutThr:len() < 39 do
                                     OutThr = " "..OutThr;
                                 end
+
                                 OutThr = string.sub(OutThr, 1, 39);
                                 OutThr = " "..OutThr.." ";
                                 ascii.font_h[x].visible = false;
-                                if (z == 1) then
-                                    ascii.font_a.visible = true;
-                                    ascii.font_a.text = OutThr;
-                                else
-                                    ascii.font_b.visible = true;
-                                    ascii.font_b.text = OutThr;
-                                end
                             else
                                 OutThr = '                                         ';
-                                if (z == 1) then
-                                    ascii.font_a.visible = true; 
-                                else  -- ^^^ VVV ^^^ VVV --Other window is checked for visible in count section above. No need to alternate blanking.
-                                    ascii.font_b.visible = true; 
-                                end
                                 ascii.font_h[x].visible = true;
                                 ascii.font_h[x].text = tostring(OutThr);
                             end
+
+                            ascii.font_a.text = OutThr; -- Think these need to be out here since OutThr is defined in two difference places above.
+                            ascii.font_b.text = OutThr; 
                         end
                     end
-                end
+                --end
             end
         else
             ascii.font_a.visible = false;
@@ -1495,6 +1694,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
             ascii.font_f[x].visible = false;
             ascii.font_h[x].visible = false;
         end
+
         for x = 0, 5 do  -- No font_g in alliance, so don't waste memory using higher than 5.
             ascii.font_g[x].visible = false;
         end
@@ -1510,6 +1710,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
         local tarserverid = 0;
         local MobHPP = 0;
         local MobHPCheck = 0;
+        local MobTarget = 0;
         local centerjust = true;
         local OutFou = '';
         local OutFiv = '';
@@ -1523,30 +1724,39 @@ ashita.events.register('d3d_present', 'present_cb', function ()
             if (target:GetIsSubTargetActive() > 0) then
                 TarID = target:GetTargetIndex(1); ---- If the target has a sub ID, use that and refence that instead.
                 submob = GetEntity(target:GetTargetIndex(0));
+                SubIndex = target:GetTargetIndex(0); -- Global on what the purple arrow is pointing to.
             else
+                SubIndex = 0;
                 TarID = target:GetTargetIndex(0);
     	    end
-	   
+
+            MainIndex = TarID; -- So we have global of what the Monster Window is looking at.
             if (TarID > 0) then 
                 tarmob = GetEntity(TarID);
                 MobHPP = tarmob.HPPercent;
                 spawn = tarmob.SpawnFlags;
                 MobName = tarmob.Name; 
                 tarserverid = tarmob.ServerId;   -- ServerId is large and unique to the dat file.
+                if (spawn == 16) then
+                   MobTarget = AshitaCore:GetMemoryManager():GetEntity():GetTargetedIndex(TarID);
+                end
             end
-			---- Poll everything in the zone to find the mob we want to kill
-            if (spawn == 16 and tarserverid > 0 and LastMob ~= tarserverid and GotPacket == false and ascii.settings.options.moninfo == true) then 
+			---- Poll everything in the zone to find the mob we want to kill. 
+                                                  --CheckedTar is to say if we checked current mob, so we don't get data from one mob onto another. That use to happen.
+            if (spawn == 16 and tarserverid > 0 and LastMob ~= tarserverid and CheckedTar ~= TarID and GotPacket == false and ascii.settings.options.moninfo == true) then
+                GotMob = tarserverid;
+                Listening = 0; -- If targets were quickly switched while listening, stop listening. 
                 for i = 1, arraySize do	----- START FOR LOOP      --^^^ No sense wasting clock cycles if we have all the info.
                     if (mb_data[i] ~= nil) then  -- Vicrelant's ibar addon incorporated here.
                         if (tonumber(mb_data[i].id) == tarserverid) then
 				---- Start the checker
-                            if (CheckLock == false) then
+                            if (CheckLock == 0) then
                                 MobDefEva = '(   ????   )';
                                 MobType = '     ???     '; -- We want these blank until we actually find the packet on the same mob, which will stop the loop.
                                 MobLvlStr = '???'; --            the packet on the same mob, which will stop the loop.
                                 MobLvl = 0;
                                 SendCheckPacket(TarID);
-                                CheckLock = true;
+                                CheckLock = OSTime;
                             end
                           ---- Get Mob Job
                             if (tonumber(mb_data[i].mj) ~= 0 and tonumber(mb_data[i].mj) <= 22) then
@@ -1561,7 +1771,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                                 MobAggro = mb_data[i].aggro;
                             end
 
-                            MobWeak = 'ID: '..string.format('0x%X',TarID)..'  Aggro: |cffff0000|'..MobAggro..' WEAK: '..mb_data[i].weak;
+                            MobWeak = 'ID: '..string.format('0x%X',TarID)..'  Aggro: |cffff0000|'..MobAggro..' WEAK: '..mb_data[i].weak..'|r SID:'..GotMob;
                             MobWeak = string.gsub(MobWeak,'WEAK:','|cffffffff|WEAK:');
                             MobWeak = string.gsub(MobWeak,'Piercing','|cffa0a0a0|PRC');
                             MobWeak = string.gsub(MobWeak,'Fire','|cffff0000|FIR');
@@ -1576,8 +1786,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                             MobWeak = string.gsub(MobWeak,'To','|cffa0a0a0|H2H'); -- The Phrase 'Hand-To-Hand' screws this all up! Haha!
                             MobWeak = string.gsub(MobWeak,'Hand','');             -- Gotta sub out three times!
                             MobWeak = string.gsub(MobWeak,'-','');               --
-
-                            LastMob = tarserverid;
+                            LastMob = tarserverid; -- Found the mob, now we don't want to run this loop again.
                             break;
                         end -- END md_data/tarserverid compare
                     end  -- END mb_data nil if 
@@ -1591,6 +1800,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
             else
                 MobLvlStr = tostring(MobLvl);
             end
+
             while MobLvlStr:len() < 3 do
                 MobLvlStr = " "..MobLvlStr;
             end
@@ -1598,19 +1808,28 @@ ashita.events.register('d3d_present', 'present_cb', function ()
             OutEig = '  |cffffffff|'..' LVL: '..tostring(MobLvlStr)..'   '..MobJob..'|cffffffff|  | '..MobType..' '..MobDefEva; 
             while MobName:len() < 47 do 
                 if (centerjust == true) then
-                    MobName = " "..MobName; 
+                    MobName = ' '..MobName; 
                     centerjust = false;
                 else
-                    MobName = MobName.." ";
+                    MobName = MobName..' ';
                     centerjust = true;
                 end
             end
+            centerjust = true; -- started this at true, so let's put it back there.
+
             MobHPCheck = math.floor(MobHPP / (100/46)); -- DENOMINATOR OF FRACTION IS HOW MANY SQUARES WE USE FOR BAR!!!!
            --[[MobStr = tostring(MobHPP);  ------ Let's not put Monster HP% in for now, defeats purpose of the bar.
             while MobStr:len() < 3 do 
                 MobStr = " "..MobStr; 
             end  ]]
             if (spawn == 16) then
+                if (ascii.settings.options.aggro == true) then
+                    if (Listening == 0 and TarID ~= party:GetMemberTargetIndex(0) and Assisting == 0) then -- Assisting ourselves gets weird, I'd have to believe.
+                        Listening = OSTime;
+                        SendAssistPacket(TarID);
+                    end
+                end
+
                 mobResult = string.gsub(mobResult,'_','#',MobHPCheck);
                 mobResult = string.gsub(mobResult,'_',' ');
                 mobResult = ''..MobStr..'|cffffffff||'..mobResult..'|cffffffff||';
@@ -1619,9 +1838,11 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                 mobResult = string.gsub(mobResult,'_','#',MobHPCheck);
                 mobResult = string.gsub(mobResult,'_',' ');
                 mobResult = ''..MobStr..'|cffffffff||'..mobResult..'|cffffffff||';
+                GotMob = 0; -- Anytime our target isn't a mob (spawn == 16), make this 0.
                 ascii.font_o.visible = false;
                 ascii.font_l.visible = false;
             else
+                GotMob = 0; -- Anytime our target isn't a mob (spawn == 16), make this 0.
                 ascii.font_m.visible = false;
                 ascii.font_n.visible = false;
                 ascii.font_o.visible = false;
@@ -1632,6 +1853,10 @@ ashita.events.register('d3d_present', 'present_cb', function ()
             MobType = '     ???     ';
             MobLvlStr = '???';
             GotPacket = false;
+            GotMob = 0; -- Anytime our target isn't a mob (spawn == 16), make this 0.
+            GotMobAct = 0;
+            GotMobActParam = 0;
+            TargetsTarget = 0;
         end -- END If Target Isn't Nil.
         
         if (spawn == 16 or ((spawn == 1 or spawn == 4 or spawn == 8 or spawn == 9 or spawn == 13) and ascii.settings.options.tarplay == true)) then     -- Differentiate Monsters from NPC's/Players/Goblin Footprints/etc.
@@ -1664,7 +1889,6 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                 end
 
                 Sneak = math.abs(MobHead - PlayHead); -- Is the mob facing the same direction as us (sneaking up behind it)?
-            
                 if (Sneak > 180) then
                     Sneak = 360 - Sneak;
                 end
@@ -1730,22 +1954,145 @@ ashita.events.register('d3d_present', 'present_cb', function ()
             else
                 ascii.font_n.position_y = ascii.font_m.position_y + (monsterfontsize * 2) + offset;
             end
+
             ascii.font_n.visible = true;
             ascii.font_n.text = tostring(OutFiv);
             if (ascii.settings.options.moninfo == true and spawn == 16) then
+                ascii.font_k.position_x = ascii.font_m.position_x;
+                ascii.font_x.position_x = ascii.font_m.position_x;
                 ascii.font_o.position_x = ascii.font_m.position_x;
+
                 if (ascii.settings.options.monabov ~= true) then
+                    ascii.font_k.position_y = ascii.font_m.position_y + (2 * ((monsterfontsize * 2) + offset));
+                    ascii.font_x.position_y = ascii.font_m.position_y + (monsterfontsize * 2) + offset;
                     ascii.font_l.position_y = ascii.font_n.position_y - (monsterfontsize * 2) - offset;
                     ascii.font_o.position_y = ascii.font_l.position_y - (monsterfontsize * 2) - offset;
                 else	
+                    ascii.font_k.position_y = ascii.font_m.position_y - (2 * ((monsterfontsize * 2) - offset));
+                    ascii.font_x.position_y = ascii.font_m.position_y - (monsterfontsize * 2) - offset;
                     ascii.font_l.position_y = ascii.font_n.position_y + (monsterfontsize * 2) + offset;
                     ascii.font_o.position_y = ascii.font_l.position_y + (monsterfontsize * 2) + offset;
                 end
+
+                -- THANK YOU SO MUCH, ALMAVIVACONTE!
+                if (ascii.settings.options.aggro == true and TargetsTarget > 0 and TargetsTarget ~= party:GetMemberTargetIndex(0)) then 
+                    local PlayerToT = GetEntity(TargetsTarget);
+                    local PlayerToTCheck = 0;
+                    local PlayerToTResult = '|cff009944|____________________________________';
+                    local PlayerToTHPP = 0;       --    123456789012345678901234567890123456789012345
+                    local PlayerToTName = '';
+
+                    if (PlayerToT ~= nil and TargetsTarget ~= tarmob.TargetIndex) then
+                       PlayerToTHPP = PlayerToT.HPPercent;
+                       PlayerToTName = PlayerToT.Name;
+
+                        if (PlayerToTHPP > 0 and PlayerToTName ~= nil) then -- We draw the lines now that our target isn't what we have claimed.
+                            PlayerToTCheck = math.floor(PlayerToTHPP / (100/36)); -- DENOMINATOR OF FRACTION IS HOW MANY SQUARES WE USE FOR BAR!!!!
+                            PlayerToTResult = string.gsub(PlayerToTResult,'_','#',PlayerToTCheck);	
+                            PlayerToTResult = string.gsub(PlayerToTResult,'_',' ');
+
+                            while PlayerToTName:len() < 8 do
+                                PlayerToTName = " "..PlayerToTName;
+                            end
+
+                            PlayerToTName = string.sub(PlayerToTName, 1, 8);
+                            PlayerToTResult = '|'..PlayerToTResult..'|r| '..PlayerToTName;
+
+                            ascii.font_k.text = PlayerToTResult;
+                            ascii.font_k.visible = true;
+                        else
+                            TargetsTarget = 0;
+                            ascii.font_k.visible = false;
+                        end
+                    else
+                        TargetsTarget = 0;
+                        ascii.font_k.visible = false;
+                    end
+                else 
+                    TargetsTarget = 0;
+                    ascii.font_k.visible = false;
+                end
+
+                local MobAbStr = '';                            -- Thanks to BYRTH and SPIKEN of SimpleLog for ideas on how to do this!
+                if (GotMobAct == 8) then 
+                    local MobSpell = AshitaCore:GetResourceManager():GetSpellById(GotMobActParam);
+                    if (MobSpell == nil) then -- NIL CHECK
+                        return;
+                    end
+
+                    if(Interrupt == false) then
+                        MobAbStr = 'CASTING:      '..tostring(MobSpell.Name[1]);
+                    else
+                        MobAbStr = '                                               ';
+                    end
+                elseif (GotMobAct == 7) then
+                    local MobAbility = '';
+                    if (GotMobActParam < 256) then
+                        local MobSkill = AshitaCore:GetResourceManager():GetAbilityById(GotMobActParam);
+                        if (MobSkill == nil) then -- NIL CHECK
+                            return;
+                        end
+
+                        MobAbility = tostring(MobSkill.Name[1]);
+                    elseif (GotMobActParam == 256) then
+                        MobAbility = 'WTF SKILL OF DOOM!';
+                    else
+                        MobAbility = AshitaCore:GetResourceManager():GetString('monsters.abilities', GotMobActParam - 256, 2) -- Must subtract 256. This table starts at 1.
+                        if (MobAbility == nil) then -- NIL CHECK
+                            return;
+                        end
+
+                        MobAbility = MobAbility:sub(1, #MobAbility - 1); -- The above string adds a "\0" on the end for some reason, screwing the centerjust up.
+                    end
+
+                    if(Interrupt == false) then
+                        MobAbStr = tostring('USING:      '..MobAbility); -- There was a tostring() for MobAbility
+                    else
+                        MobAbStr = '                                               ';
+                    end
+                else
+                    MobAbStr = '                                               ';
+                end    --       12345678901234567890123456789012345678901234567
+
+                while MobAbStr:len() < 47 do 
+                    if (centerjust == true) then
+                        MobAbStr = ' '..MobAbStr; 
+                        centerjust = false;
+                    else
+                        MobAbStr = MobAbStr..' ';
+                        centerjust = true;
+                    end
+                end
+                centerjust = true; -- started this at true, so let's put it back there.
+
+                if (UnableToSee == true) then
+                    local Flasher = 0;
+                    
+                    _, Flasher = math.modf(tick/6)
+                    if (Flasher < .5) then
+                        ascii.font_x.background.color = 0x3FFF0000;
+                    else  
+                        ascii.font_x.background.color = ascii.settings.monsterfont.background.color;
+                    end
+
+                    MarkTickSee = MarkTickSee + 1;
+                    if (MarkTickSee > 20) then
+                        MarkTickSee = 0;
+                        UnableToSee = false;
+                        ascii.font_x.background.color = ascii.settings.monsterfont.background.color;
+                    end
+                end
+
+                ascii.font_x.visible = true;
                 ascii.font_l.visible = true;
                 ascii.font_o.visible = true;
                 ascii.font_l.text = tostring(OutEig);
                 ascii.font_o.text = tostring(OutSix);
+                ascii.font_x.text = tostring(MobAbStr);
             else
+                TargetsTarget = 0;
+                ascii.font_k.visible = false;  
+                ascii.font_x.visible = false;  
                 ascii.font_l.visible = false;                 
                 ascii.font_o.visible = false;
             end
@@ -1754,6 +2101,12 @@ ashita.events.register('d3d_present', 'present_cb', function ()
             ascii.font_n.visible = false;    --
             ascii.font_o.visible = false;    --
             ascii.font_l.visible = false;    --
+            ascii.font_k.visible = false;    --
+            ascii.font_x.visible = false;    --
+            TargetsTarget = 0;
+            GotMob = 0; -- Anytime our target isn't a mob (spawn == 16), make this 0.
+            GotMobAct = 0;
+            GotMobActPAram = 0;
             SneakAttack = false; 
         end
 
@@ -1783,36 +2136,39 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                         OutSev = OutSev..' ('..' '..string.format('%2.0f',subHPP)..' )';
                     end
                 end
-
             end
         end
+
         if (target:GetIsSubTargetActive() == 0) then
             OutSev = '|cFF80FF00|'..OutSev; 
         else
             OutSev = '|cff7f2be2|'..OutSev; 
         end
+
         ascii.font_p.font_height  = monsterfontsize + 2;
         ascii.font_p.italic = true;
         ascii.font_p.background.visible = false;
         ascii.font_p.text = OutSev; -- Target/Sub-Target Name
     else
+        ascii.font_k.visible = false;
+        ascii.font_x.visible = false;    
         ascii.font_l.visible = false;
         ascii.font_m.visible = false;
         ascii.font_n.visible = false;
         ascii.font_o.visible = false;
         ascii.font_p.visible = false;
+        TargetsTarget = 0;
     end
 -------- END Mob Info Window
 
 -------- Player Window
     if(ascii.settings.options.playwin == true) then
-        local sResult = '{__________________________________________________|cffffffff|}';
-        local playernumber = 0;
-
         if (player == nil or playerent == nil) then 
             return; 
         end
-		
+
+        local sResult = '';
+        local playernumber = 0;
         local HPValue = playerent.HPPercent;
         local HPCheck = math.floor(HPValue / (100 / 50));
         local HPColor = '';
@@ -1823,36 +2179,34 @@ ashita.events.register('d3d_present', 'present_cb', function ()
         local SelfMP = party:GetMemberMP(0); 
         local SelfMPMax = player:GetMPMax();
         local SelfStr = '                   '; -- Let's go some spaces in for Pet Name room
-        local SelfTPStr = '    '; -- 4 Characters
-        local SelfHPStr = '    '; -- 4 Characters
-        local SelfMPStr = '   ';  -- 3 Characters
-        local SelfMPMStr = '    '; -- 4 Characters
-        local SelfHPMStr = '    '; -- 4 Characters
-
-        SelfTPStr = tostring(SelfTP);
+        local SelfTPStr = tostring(SelfTP);
+        local SelfHPStr = tostring(SelfHP)
+        local SelfMPStr = tostring(SelfMP);
+        local SelfMPMStr = tostring(SelfMPMax);
+        local SelfHPMStr = tostring(SelfHPMax);
+        local pet = GetEntity(playerent.PetTargetIndex);
         while SelfTPStr:len() < 4 do
             SelfTPStr = " "..SelfTPStr;
         end
+
         if (SelfTP >= 1000) then
             SelfTPStr = '|cff70ff70|'..SelfTPStr..'|r';
         else
             SelfTPStr = '|cffc0c0c0|'..SelfTPStr..'|r';
         end	
 
-        SelfHPStr = tostring(SelfHP);
-        SelfHPMStr = tostring(SelfHPMax);
         while SelfHPStr:len() < 4 do
             SelfHPStr = " "..SelfHPStr;
         end
+
         while SelfHPMStr:len() < 4 do
             SelfHPMStr = " "..SelfHPMStr;
         end
 
-        SelfMPStr = tostring(SelfMP);
-        SelfMPMStr = tostring(SelfMPMax);
         while SelfMPStr:len() < 3 do
             SelfMPStr = " "..SelfMPStr;
         end
+
         while SelfMPMStr:len() < 3 do
             SelfMPMStr = " "..SelfMPMStr;
         end
@@ -1861,7 +2215,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
             local HeartFullTot = 0;
             local HeartFull = 0;
             local HeartFrac = 0;
-            local value = 1; -- VALUE IS PLACEHOLDER IN HEART LINE (1 to 12).
+            local Value = 1; -- VALUE IS PLACEHOLDER IN HEART LINE (1 to 12).
             local HeartMax = 0;
             local SwordNum = 1; -- Don't like putting 0 since there is no Sword-0. Just in case.
 
@@ -1876,34 +2230,32 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 
             HeartFull , HeartFrac = math.modf(HPValue / (100 / HeartMax));  -- DENOMINATOR IS HOW MANY HEART CONTAINERS
             HeartFullTot = HeartFull;
-
             while HeartFull > 0 do
-                HeartNum[value] = 5;
+                HeartNum[Value] = 5;
                 HeartFull = HeartFull - 1;
-                value = value + 1;
+                Value = Value + 1;
             end	
 
             if (HeartFrac > .95) then  -- 95 to 100 percent gets 4/4 Heart?
-                HeartNum[value] = 5; -- FULL HEART
+                HeartNum[Value] = 5; -- FULL HEART
             elseif (HeartFrac > .66) then  -- 66 to 95 percent gets 3/4 Heart?
-                HeartNum[value] = 4; -- 3/4 HEART
+                HeartNum[Value] = 4; -- 3/4 HEART
             elseif (HeartFrac > .33) then  -- 33 to 66 percent gets 1/2 Heart?
-                HeartNum[value] = 3; -- 1/2 HEART
+                HeartNum[Value] = 3; -- 1/2 HEART
             elseif (HeartFrac > .1) then  -- 10 to 33 percent gets 1/4 Heart?
-                HeartNum[value] = 2; -- 1/4 HEART
+                HeartNum[Value] = 2; -- 1/4 HEART
             else	
                 if(HeartFullTot == 0 and HPValue > 0) then -- To not show some health as zero Hearts when near Death.
-                    HeartNum[value] = 2 -- 1/4 Heart
+                    HeartNum[Value] = 2 -- 1/4 Heart
                 else
-                    HeartNum[value] = 1 -- EMPTY HEART for less than 10 percent when not near Death.
+                    HeartNum[Value] = 1 -- EMPTY HEART for less than 10 percent when not near Death.
                 end
             end
 	
-            value = value + 1; -- Increase value from the fractional Heart
-
-            while value <= HeartMax do
-                HeartNum[value] = 1; -- EMPTY HEART
-                value = value + 1;
+            Value = Value + 1; -- Increase value from the fractional Heart
+            while Value <= HeartMax do
+                HeartNum[Value] = 1; -- EMPTY HEART
+                Value = Value + 1;
             end
 				-- DRAW HEARTS
             for x = 1, 12 do
@@ -1938,7 +2290,8 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                     Sword[SwordNum].position_x = Sword[SwordNum].position_x + 48; -- Then move it depending on text font size to line it up to the edge of the window.
                 elseif (ascii.settings.selffont.font_height == 10) then
                     Sword[SwordNum].position_x = Sword[SwordNum].position_x - 96;
-                end                        
+                end
+
                 Sword[SwordNum].locked = true;
                 Sword[SwordNum].visible = true;
             end
@@ -1949,7 +2302,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                 sResult = ' LIFE ';
             end   
 
-            ascii.font_q.font_height  = 30; --[[2 * selffontsize;]]    -- TWO SETS OF THESE LINE PLACEMENTS, ONE FOR HEART ONE FOR REGULAR. THIS IS HEART.
+            ascii.font_q.font_height  = 30;    -- TWO SETS OF THESE LINE PLACEMENTS, ONE FOR HEART ONE FOR REGULAR. THIS IS HEART.
             ascii.font_s.position_x = ascii.font_r.position_x;
             ascii.font_s.position_y = ascii.font_r.position_y + (selffontsize * 2) + offset;
             ascii.font_t.position_x = ascii.font_s.position_x;
@@ -1962,6 +2315,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
             elseif (ascii.font_r.font_height == 14) then
                 push = -3;
             end
+
             ascii.font_r.position_x = ascii.font_q.position_x;
             ascii.font_r.position_y = push + ascii.font_q.position_y + (selffontsize * 2) + offset + 28;
             ascii.font_u.position_x = ascii.font_q.position_x;
@@ -1988,7 +2342,8 @@ ashita.events.register('d3d_present', 'present_cb', function ()
             if (HPValue <= 0) then
                 sResult = '                   |cffff0000|YOU ARE DEAD!                    |r';
             else
-                sResult = string.gsub(sResult,'_',HPColor .. '#',HPCheck);
+                sResult = '{'..HPColor..'__________________________________________________|cffffffff|}';
+                sResult = string.gsub(sResult,'_','#',HPCheck);
                 sResult = string.gsub(sResult,'_',' ');
             end
 
@@ -2012,42 +2367,53 @@ ashita.events.register('d3d_present', 'present_cb', function ()
             ascii.font_q.background.color = ascii.settings.selffont.background.color;
             ascii.font_u.background.color = ascii.settings.selffont.background.color;
         end
-   
+
         ascii.font_u.visible = true; 
         ascii.font_u.text = SelfStr; -- TEST NUMBERS HERE
         ascii.font_q.visible = true;
-        ascii.font_q.text = string.format(sResult);
-
-        local pet = GetEntity(playerent.PetTargetIndex);
+        
+        if(ascii.settings.options.debug == true and ascii.settings.options.zilda == true) then -- Debug only works in Fairy mode.
+            ascii.font_q.font_height  = 20;
+            ascii.font_q.text = string.format(sResult..'     '..tostring(DEBUG1)..'  '..tostring(DEBUG2)..'  '..tostring(DEBUG3)..'  '..tostring(DEBUG4));
+        else
+            ascii.font_q.text = string.format(sResult);
+        end
 
         if (playerent.PetTargetIndex > 0 and pet ~= nil) then ---- PLAYER HAS PET
-            ascii.font_r.visible = true;
-            ascii.font_s.visible = true;
-            ascii.font_t.visible = true;
             local petname = pet.Name;
             local pettp = player:GetPetTP();
             local petmp = player:GetPetMPPercent();
             local pResult = '{|cff00ffff|__________________________________________________|cffffffff|}'; 
             local PHValue = pet.HPPercent;
             local PHCheck = math.floor(PHValue / (100 / 50));
-            local tResult  = '|cffffffff|{____________________|cffffffff|}';
-            local pmResult = '|cffffffff|{____________________|cffffffff|}';
+            local tResult  = '';
+            local pmResult = '';
             local PTCheck = math.floor(pettp / (3000 / 20));
             local PTColor = '|cff7f7f7f|';
             local PMCheck = math.floor(petmp / (100 / 20));
             local PMColor = '|cfff48dff|';
             local PetTarget = nil;
-
+            local PDebuffs = '      ';
             while (petname:len() < 15) do
                 petname = petname.." ";
             end
 
+            ascii.font_r.visible = true;
+            ascii.font_s.visible = true;
+            ascii.font_t.visible = true;
             ascii.font_r.background.visible = false;
             ascii.font_r.text = string.format(petname);
             pResult = string.gsub(pResult,'_','#',PHCheck);
             pResult = string.gsub(pResult,'_',' ');
-            ascii.font_s.text = string.format(pResult);
+            if (SteadyW == true or PetDebuffs == 37) then -- Steady Wing or Stoneskin will put up our shielding thing.
+                ascii.font_s.background.color = 0x4FFFFFFF;
+                ascii.font_s.background.visible = true;
+            else
+                ascii.font_s.background.color = ascii.settings.selffont.background.color;
+                ascii.font_s.background.visible = ascii.settings.selffont.background.visible;
+            end
 
+            ascii.font_s.text = string.format(pResult);
             if (pettp >= 1000) then
                 PTColor = '|cff40a040|';
             end
@@ -2056,19 +2422,53 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                 PMColor = '|cffff00cc|';
             end
             
-            tResult = string.gsub(tResult,'_',PTColor..'#',PTCheck);
+            if (PetDebuff == 0) then
+                PDebuffs = '      ';
+            elseif (PetDebuffs == 2 or PetDebuffs == 19) then -- Slept, Make these 6 characters long.
+                PDebuffs = ' SLEPT';
+            elseif (PetDebuffs == 7) then -- Petrified
+                PDebuffs = 'PETRI.';
+            elseif (PetDebuffs == 193) then -- Lullaby
+                PDebuffs = ' LULL ';
+            elseif (PetDebuffs == 6) then -- Silence
+                PDebuffs = 'SILENT';
+            elseif (PetDebuffs == 4 or PetDebuffs == 566) then -- Paralysis
+                PDebuffs = 'PARAL.';
+            elseif (PetDebuffs == 10) then -- Stun
+                PDebuffs = ' STUN ';
+            elseif (PetDebuffs == 16) then -- Amnesia
+                PDebuffs = 'AMNES.';
+            elseif (PetDebuffs == 21) then -- Addle
+                PDebuffs = 'ADDLED';
+            elseif (PetDebuffs == 22) then -- Intimidated
+                PDebuffs = 'INTIM.';
+            elseif (PetDebuffs == 28) then -- Terror
+                PDebuffs = 'TERROR';
+            elseif (PetDebuffs == 11) then -- Bind
+                PDebuffs = ' BIND ';
+            elseif (PetDebuffs == 136) then -- STR DOWN TEST
+                PDebuffs = ' STR  '; ------ TEST 
+            elseif (PetDebuffs == 3 or PetDebuffs == 540) then -- poison TEST
+                PDebuffs = 'POISON';    
+            elseif (PetDebuffs > 0) then -- Default
+                PDebuffs = '|cffff0000|UNKNWN|r';
+            else
+                PDebuffs = '      ';
+            end
+            tResult = '{'..PTColor..'____________________|r}';
+            tResult = string.gsub(tResult,'_','#',PTCheck);
             tResult = string.gsub(tResult,'_',' ');
-            pmResult = string.gsub(pmResult,'_',PMColor..'#',PMCheck);
+            pmResult = '{'..PMColor..'____________________|r}';
+            pmResult = string.gsub(pmResult,'_','#',PMCheck);
             pmResult = string.gsub(pmResult,'_',' ');
-            ascii.font_t.text = string.format(tResult..'        '..pmResult);
-
+            ascii.font_t.text = string.format(tResult..' '..PDebuffs..' '..pmResult);
         -- Pet's target function
-            if (PetTargetsID > 0 and PetTargetsID ~= target:GetServerId(0) and PetTargetsID ~= target:GetServerId(1)) then
-                PetTarget = GetEntityByServerId(PetTargetsID); -- PetsTargetsID is a ServerID
+            if (PetTargetsID > 0 and PetTargetsID ~= target:GetServerId(0) and PetTargetsID ~= target:GetServerId(1)) then -- Don't see unless the pet's target differs from our own.
+                PetTarget = GetEntityByServerId(PetTargetsID); -- PetTargetsID is a ServerID
                 if (PetTarget ~= nil) then
                     local PetTarHPPer = 0;
                     local PetTarName = '';
-                    local PetTarResult = '|cffffffff|{|cffff7700|______________________________|cffffffff|}'; 
+                    local PetTarResult = '{|cffff7700|______________________________|r}'; 
                     local PTTCheck = 0;
                     PetTarHPPer = PetTarget.HPPercent;
                     PetTarName = PetTarget.Name;
@@ -2076,8 +2476,10 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                         while PetTarName:len() < 19 do 
                             PetTarName = " "..PetTarName; 
                         end
+
                         PetTarName = string.sub(PetTarName, 1, 19);
                     end
+
                     PTTCheck = math.floor(PetTarHPPer / (100 / 30));
                     PetTarResult = string.gsub(PetTarResult,'_','#',PTTCheck);
                     PetTarResult = string.gsub(PetTarResult,'_',' ');
@@ -2090,12 +2492,16 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                 ascii.font_w.visible = false;
             end
         else
+            PetDebuffs = 0;
+            SteadyW = false;
             ascii.font_r.visible = false;
             ascii.font_s.visible = false;
             ascii.font_t.visible = false;
             ascii.font_w.visible = false;
         end
     else
+        PetDebuffs = 0;
+        SteadyW = false;
         ascii.font_q.visible = false;
         ascii.font_r.visible = false;
         ascii.font_s.visible = false;
@@ -2107,6 +2513,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                 HeartContainer[x][y].visible = false;
             end	
         end
+
         for x = 1, 3 do
             Sword[x].visible = false;
         end
@@ -2135,6 +2542,7 @@ local function print_help(isError)
         { '/ASCII-Joy exp      ', 'Toggles the Experience Bar.'},
         { '/ASCII-Joy party    ', 'Toggles the Party Window on and off.' },
         { '/ASCII-Joy order    ', 'Toggles Party Window list sorting (Ascending/Descending).' },
+        { '/ASCII-Joy claim    ', 'Toggles showing a claimed mob you are not targetting under the Party Window. (Thanks, Dash!)'},
         { '/ASCII-Joy alliance ', 'Toggles Alliance Windows (WILL COST SOME FPS, FOR SURE).'},
         { '/ASCII-Joy solo     ', 'Toggles seeing yourself in Party Window while solo (Zone Name remains).' },
         { '/ASCII-Joy player   ', 'Toggles Player Window of your own HP Bar, TP, Mana, Pet info (if you have one).' },
@@ -2144,6 +2552,7 @@ local function print_help(isError)
         { '/ASCII-Joy monster ', 'Toggles the Monster Health/Sub-Target Window.' },
         { '/ASCII-Joy mon-pos ', 'Toggles Monster info Above/Below their Health Bar.' },
         { '/ASCII-Joy mon-info', 'Toggles Aggro/Weak info. Not live info, pulled from file.' },
+        { '/ASCII-Joy aggro',    'Toggles seeing who the Monster is trying to kill. (/ASSIST MAY ACT WEIRD. SEE README!)'},
         { '/ASCII-Joy tarplay ', 'Toggles ability to see other Players Health in the Monster Health Window.' },
         { '',''},
         { '','To move the Cast Bar, Shift-LeftClick-Drag the bar around while casting (sorry, only way to see it).'},
@@ -2165,7 +2574,19 @@ end
 ashita.events.register('command', 'command_cb', function (ee)
     -- Parse the command arguments..
     local args = ee.command:args();
-    if (#args == 0 or args[1] ~= '/ASCII-Joy') then
+    if (#args == 0) then
+        return;
+    end
+
+    if (args[1] == '/assist' or args[1] == '/Assist' or args[1] == '/ASSIST') then -- Maybe block assist while targetting a mob?
+        if (Assisting == 0) then 
+            Assisting = OSTime;
+        end
+
+        return;
+    end
+
+    if (args[1] ~= '/ASCII-Joy') then
         return;
     end
 
@@ -2201,6 +2622,7 @@ ashita.events.register('command', 'command_cb', function (ee)
             ascii.settings.all1font.font_family = 'Consolas';
             print(chat.header(addon.name):append(chat.message('Your FONTS will be New School Consolas.')));
         end
+
         save_everything(); -- We will lose window positiions if they were moved from updating, so we will save twice.
         update_settings(); -- Updating Settings actually applies them too.
         return;
@@ -2213,6 +2635,7 @@ ashita.events.register('command', 'command_cb', function (ee)
         elseif(ascii.settings.options.cast == false) then
             print(chat.header(addon.name):append(chat.message('Cast Bar DISABLED.')));
         end
+
         save_everything();
         return;
     end
@@ -2225,6 +2648,7 @@ ashita.events.register('command', 'command_cb', function (ee)
             print(chat.header(addon.name):append(chat.message('Experience Bar DISABLED.')));
             ascii.font_d.visible = false;
         end
+
         save_everything();
         return;
     end
@@ -2236,6 +2660,7 @@ ashita.events.register('command', 'command_cb', function (ee)
         elseif(ascii.settings.options.party == false) then
             print(chat.header(addon.name):append(chat.message('Party Window DISABLED.')));
         end
+
         save_everything();
         return;
     end
@@ -2266,6 +2691,7 @@ ashita.events.register('command', 'command_cb', function (ee)
             ascii.settings.all1font.background.color = 0x00000000;
             print(chat.header(addon.name):append(chat.message('Window Backgrounds will be OFF (Invisible).')));		
         end
+
         save_everything(); -- We will lose window positiions if they were moved from updating, so we will save twice.
         update_settings(); -- Updating Settings actually applies them too.
         return;
@@ -2291,6 +2717,7 @@ ashita.events.register('command', 'command_cb', function (ee)
             ascii.settings.partyfont.font_height = 10;
             print(chat.header(addon.name):append(chat.message('Font size will be Small (10).')));		
         end
+
         save_everything(); -- We will lose window positiions if they were moved from updating, so we will save twice.
         update_settings(); -- Updating Settings actually applies them too.
         return;
@@ -2303,6 +2730,7 @@ ashita.events.register('command', 'command_cb', function (ee)
         elseif(ascii.settings.options.playwin == true) then
             print(chat.header(addon.name):append(chat.message('Player Window ENABLED.')));
         end
+
         save_everything();
         return;
     end
@@ -2315,6 +2743,7 @@ ashita.events.register('command', 'command_cb', function (ee)
             elseif(ascii.settings.options.solo == false) then
                 print(chat.header(addon.name):append(chat.message('You WILL see yourself in the Party Window while Solo.')));
             end
+
             save_everything();
             return;
         else
@@ -2331,6 +2760,24 @@ ashita.events.register('command', 'command_cb', function (ee)
             elseif(ascii.settings.options.order == false) then
                 print(chat.header(addon.name):append(chat.message('You will see the Party Window in DESCENDING Order (You at the bottom).')));
             end
+
+            save_everything();
+            return;
+        else
+            print(chat.header(addon.name):append(chat.message('You need the Party Window enabled to toggle this.')));
+            return;
+        end
+    end
+
+    if (#args == 2 and args[2]:any('claim')) then
+        if(ascii.settings.options.party == true) then
+            ascii.settings.options.claim = not ascii.settings.options.claim;
+            if(ascii.settings.options.claim == true) then
+                print(chat.header(addon.name):append(chat.message('You will see the Battle Target of the Party.')));
+            elseif(ascii.settings.options.claim == false) then
+                print(chat.header(addon.name):append(chat.message('You will NOT see the Battle Target of the Party.')));
+            end
+
             save_everything();
             return;
         else
@@ -2347,6 +2794,7 @@ ashita.events.register('command', 'command_cb', function (ee)
             elseif(ascii.settings.options.alliance == true) then
                 print(chat.header(addon.name):append(chat.message('You WILL see Alliance Windows.')));
             end
+
             save_everything();
             return;
         else
@@ -2362,6 +2810,23 @@ ashita.events.register('command', 'command_cb', function (ee)
         elseif(ascii.settings.options.monster == true) then
             print(chat.header(addon.name):append(chat.message('Monster Window ENABLED.')));
         end
+
+        save_everything();
+        return;
+    end
+
+    if (#args == 2 and args[2]:any('debug')) then
+        ascii.settings.options.debug = not ascii.settings.options.debug;
+        if(ascii.settings.options.debug == false) then
+            print(chat.header(addon.name):append(chat.message('DEBUG MODE DISABLED.')));
+            DEBUG1 = nil;
+            DEBUG2 = nil;
+            DEBUG3 = nil;
+            DEBUG4 = nil;
+        elseif(ascii.settings.options.monster == true) then
+            print(chat.header(addon.name):append(chat.message('DEBUG MODE ENABLED.')));
+        end
+
         save_everything();
         return;
     end
@@ -2374,6 +2839,7 @@ ashita.events.register('command', 'command_cb', function (ee)
             elseif(ascii.settings.options.monabov == false) then
                 print(chat.header(addon.name):append(chat.message('You will see the monster info BELOW their Health Bar.')));
             end
+
             save_everything();
             return;
         else
@@ -2390,6 +2856,7 @@ ashita.events.register('command', 'command_cb', function (ee)
             elseif(ascii.settings.options.tarplay == false) then
                 print(chat.header(addon.name):append(chat.message('You will NOT see Players in the Monster Health Window.')));
             end
+
             save_everything();
             return;
         else
@@ -2406,8 +2873,31 @@ ashita.events.register('command', 'command_cb', function (ee)
             elseif(ascii.settings.options.moninfo == false) then
                 print(chat.header(addon.name):append(chat.message('You will NOT see the Monster Extended Info.')));
             end
+
             save_everything();
             return;
+        else
+            print(chat.header(addon.name):append(chat.message('You need the Monster Window enabled to toggle this.')));
+            return;
+        end
+    end
+
+    if (#args == 2 and args[2]:any('aggro')) then
+        if(ascii.settings.options.monster == true) then
+            if(ascii.settings.options.moninfo == true) then
+                ascii.settings.options.aggro = not ascii.settings.options.aggro;
+                if(ascii.settings.options.aggro == true) then
+                    print(chat.header(addon.name):append(chat.message('You will track who the Monster is trying to kill.')));
+                elseif(ascii.settings.options.aggro == false) then
+                    print(chat.header(addon.name):append(chat.message('You do not care who the Monster is trying to kill.')));
+                end
+
+                save_everything();
+                return;
+            else
+                print(chat.header(addon.name):append(chat.message('You need Monster Information (mon-info) enabled to toggle this.')));
+                return;
+            end
         else
             print(chat.header(addon.name):append(chat.message('You need the Monster Window enabled to toggle this.')));
             return;
@@ -2417,13 +2907,34 @@ ashita.events.register('command', 'command_cb', function (ee)
     if (#args == 3 and args[2]:any('offset')) then
         local change = args[3]:number_or(0);
         if(change > 10 or change < -10) then
-            print(chat.header(addon.name):append(chat.message('Valid Offset range is -10 to 10.')));
+            print(chat.header(addon.name):append(chat.message('Valid Offset range are integers -10 to 10.')));
             return;
         end
+
         ascii.settings.options.offset = change;
         print(chat.header(addon.name):append(chat.message('Your Line Spacing Offset is now %d'):fmt(change)));
         save_everything(); -- We will lose window positiions if they were moved from updating, so we will save twice.
         update_settings();
+        return;
+    end
+
+    if (#args == 2 and args[2]:any('shadows')) then 
+        local StatusID = 0;
+        local TempPlayer = AshitaCore:GetMemoryManager():GetPlayer();
+        local Buffs = TempPlayer:GetBuffs();
+
+        for x = 1, 32 do -- Make sure we have the buff before we send a packet
+            for _, value in pairs(T{66, 444, 445, 446}) do
+                if(value == Buffs[x]) then
+                    StatusID = Buffs[x];
+                    local HighIDBit = bit.rshift(StatusID, 8);
+                    local LowIDBit = bit.band(StatusID, 0xFF);
+                    AshitaCore:GetPacketManager():AddOutgoingPacket(0xF1, {0x00, 0x00, 0x00, 0x00, LowIDBit, HighIDBit, 0x00, 0x00});
+                    return;
+                end
+            end
+        end
+
         return;
     end
 
@@ -2445,6 +2956,7 @@ ashita.events.register('command', 'command_cb', function (ee)
                 for x = 1, 2 do
                     Fairy[x].visible = false;
                 end
+
                 print(chat.header(addon.name):append(chat.message('You will see the Old School ASCII Health Bar.')));
             end
             save_everything();
@@ -2464,6 +2976,7 @@ ashita.events.register('command', 'command_cb', function (ee)
                 elseif(ascii.settings.options.grow == true) then
                     print(chat.header(addon.name):append(chat.message('You will earn more Heart Containers as you level up (12 Maximum).')));
                 end
+
                 save_everything();
                 return;
             else
@@ -2489,6 +3002,7 @@ ashita.events.register('command', 'command_cb', function (ee)
                 elseif(ascii.settings.options.fairy == true) then
                     print(chat.header(addon.name):append(chat.message('The Fairy will now lie in wait, stalking you...')));
                 end
+
                 save_everything();
                 return;
             else
@@ -2500,30 +3014,56 @@ ashita.events.register('command', 'command_cb', function (ee)
             return;
         end
     end    
-    -- Unhandled: Print help information..
-    print_help(true);
+    -- Unhandled: Print stub..
+    print(chat.header(addon.name):append(chat.message('Incorrect Syntax. Type<  /ASCII-Joy help  >to bring up the menu of syntax choices.')));
 end);
 
-ashita.events.register('packet_in', 'packet_in_cb', function (e) -- Checker and petinfo addon by Atom0s. Used with permission.
-    -- Packet: Zone Enter / Zone Leave
+ashita.events.register('packet_in', 'packet_in_cb', function (e) -- Checker and petinfo addon by Atom0s. Used with permission. Rest is mine, Haha.
+  -- Packet: Zone Enter / Zone Leave
     if (e.id == 0x000A or e.id == 0x000B) then
         return;
     end
 
-    -- Packet: Message Basic
-    if (e.id == 0x0029) then
-        local p1    = struct.unpack('l', e.data, 0x0C + 0x01); -- Param 1 (Level)
-        local p2    = struct.unpack('L', e.data, 0x10 + 0x01); -- Param 2 (Check Type)
-        local m     = struct.unpack('H', e.data, 0x18 + 0x01); -- Message (Defense / Evasion)
-
-        -- Obtain the target entity..
-        local target = struct.unpack('H', e.data, 0x16 + 0x01);
-        local entity = GetEntity(target);
-        if (entity == nil) then
-            return;
+  -- Packet: Message Basic
+    if (e.id == 0x0029) then -- Checker stuff
+        local p1    = struct.unpack('l', e.data, 0x0C + 0x01); -- Param 1 (Level, for checker)
+        local p2    = struct.unpack('L', e.data, 0x10 + 0x01); -- Param 2 (Check Type, for checker)
+        local m     = struct.unpack('H', e.data, 0x18 + 0x01); -- Message (Defense / Evasion, for checker)
+        local PacketTar = struct.unpack('H', e.data, 0x16 + 0x01); -- This is not ServerID!!!
+    ---- Begin message checks
+        if (m == 0x05) then -- 5 is Unable to See, 4 is Too far away.
+            UnableToSee = true;
         end
 
-        -- Ensure this is a /check message..
+        ---- Try to catch Pet things.
+        local entity = GetEntity(PacketTar); -- Make sure this index number makes something valid before continuing any further. Could use it for something later.
+        local player = GetPlayerEntity(); -- Let's check for pet status?
+        if(player == nil or entity == nil) then
+            return;
+        elseif (PacketTar ~= nil and PacketTar > 0 and player.PetTargetIndex == PacketTar) then -- See if we can snag certain debuffs on the pets. Does this cover AOE? 
+            if (m > 1) then -- 1 is normal attack, we don't need to scan through that. 
+                for _, value in pairs(T{82, 127, 141, 203, 205, 236, 242, 243, 270, 277, 278, 279, 280, 320, 375, 421, 441, 602, 645}) do -- Applying debuffs. 141 looks ok if /lb is line break.
+                    if (value == m) then   
+                        PetDebuffs = p1;
+                        break;
+                    end
+                end
+
+                for _, value in pairs(T{64, 83, 204, 206, 350, 531}) do -- Removing debuffs -- This stays in 0x29.
+                    if (value == m) then  -- Need another for value pairs table check to see if it's a debuff we would even track.
+                        if (p1 == 37) then
+                            SteadyW = false;
+                        end
+                        PetDebuffs = 0;
+                        break;
+                    end
+                end
+            end 
+        end
+        ---- End Pet things
+        
+        ---- Checker Begin, Thanks Atom0s.
+        -- Ensure this is a /check message.. 
         if (m ~= 0xF9 and (not checker.conditions:haskey(m) or not checker.types:haskey(p2))) then
             return;
         end
@@ -2531,53 +3071,173 @@ ashita.events.register('packet_in', 'packet_in_cb', function (e) -- Checker and 
         -- Obtain the string form of the conditions and type..
         local c = checker.conditions[m];
         local t = checker.types[p2];
-
-        if (c == nil or t == nil) then -- Otherwise it will crash getting the length of 'c' three lines down. (Happened)
+        if (c == nil or t == nil) then -- Otherwise it will crash getting the length of 'c' a few lines down. (Happened)
             return;
         end
+
         MobLvl = p1;
         MobDefEva = tostring(#c > 0 and c:enclose('(', ')') or c);
         MobType = tostring(t);
-        GotPacket = true;
-		
-        -- Mark the packet as handled..
-        e.blocked = true;
-    end
+        CheckedTar = PacketTar;
+        GotPacket = true; -- So we stop trying to check.
+        e.blocked = true; -- So we don't fill the chat window.
+        return true;
+    end---- Checker End
+  ------
 
-        -- Packet: Action
+  -- Packet: Action
     if (e.id == 0x0028) then
-        local player = GetPlayerEntity();
-        if (player == nil or player.PetTargetIndex == 0) then
+        local ServerID = struct.unpack('I', e.data, 0x05 + 0x01); -- ServerID of the Actor.
+        local TempPlayer = GetPlayerEntity(); -- This is an Entity structure. Not the same as Player structure. Leave this.
+        local Action = ashita.bits.unpack_be(e.data:totable(),  0x52, 0x04); -- Category in the base of that table for 0x28.
+        local ActParam = ashita.bits.unpack_be(e.data:totable(), 0xD5, 0x11); -- Which Skill was used?
+        local ActMessage = ashita.bits.unpack_be(e.data:totable(), 0xD5 + 0x11, 0x0A); -- The message from the message list that goes to chat.
+        local TargetSID = ashita.bits.unpack_be(e.data:totable(), 0x96, 0x20);
+        if (TempPlayer == nil) then -- NIL CHECK
             return;
         end
-    
-        local pet = GetEntity(player.PetTargetIndex);
-        if (pet == nil) then
-            return;
-        end
-    
-        local data = struct.unpack('I', e.data_modified, 0x05 + 0x01);
-        if (data ~= 0 and data == pet.ServerId) then
-            PetTargetsID = ashita.bits.unpack_be(e.data_modified:totable(), 0x96, 0x20);
-            return;
+        local Pet = GetEntity(TempPlayer.PetTargetIndex); -- has to be down here in case TempPlayer goes nil for zoning. Happened.
+        -------- 
+        if (ServerID ~= 0 and ServerID == TempPlayer.ServerId) then -- Handling things we do. ONLY THE PLAYER
+            local player = AshitaCore:GetMemoryManager():GetPlayer(); -- This is a Player structure. Not the same as Entity structure. Leave this.
+            if (player == nil) then
+                return;
+            end
+             -- ServerID for the target of this action.
+            if (player:GetMainJob() == 14 and Pet ~= nil and Action == 6 and Pet.ServerId ~= nil and 
+                Pet.ServerId == TargetSID and ActParam == 0 and ActMessage == 100) then 
+                    SteadyW = true;
+            end
         end
 
+        if (ServerID ~= 0 and ServerID == GotMob) then -- GotMob is the one I am targetting, the only one we care about watching. All this for tracking what mob is doing.
+            if (TargetSID > 0 --[[and Action == 1]]) then    ------ Track all actions, not just attacking.
+                local MobTargetTarget = GetEntityByServerId(TargetSID); -- At least here it loops less than every frame rendering of TargetsTarget bar.
+                if (MobTargetTarget == nil or MobTargetTarget.TargetIndex == nil or MobTargetTarget.SpawnFlags == 16) then -- So you don't track it casting on itself.
+                    return;
+                end
+
+                TargetsTarget = MobTargetTarget.TargetIndex; -- TargetsTarget is now using TargetIndex, not ServerID.
+            end
+            -- Try to find Ability ID of the Monster.
+            if (Action == 7 or Action == 8) then -- Start of action, what action done down below. Message 0 is that action was interrupted.
+                if (ActMessage == 0) then
+                    Interrupt = true;
+                else
+                    Interrupt = false;
+                end
+            else
+                for _, value in pairs(T{3, 4, 5, 6, 11, 13, 14, 15}) do -- ending a cast?
+                    if (value == Action) then
+                        ActParam = ashita.bits.unpack_be(e.data:totable(), 0x56, 0x10); -- This is the parameter of the base in that chart.
+                        break;
+                    end
+                end
+            end
+
+            GotMobAct = Action; -- Turn locals into globals.
+            GotMobActParam = ActParam;
+        end
+
+        if (Pet ~= nil and ServerID ~= 0) then -- We have a valid Pet. Leave this as the first pet conditional.
+            if (ServerID == Pet.ServerId) then -- Pet is the Actor.
+                PetTargetsID = TargetSID;
+            end  -- Leave both here in case the pet is doing something to itself, it would be both the Actor and Target?
+
+            if (TargetSID == Pet.ServerId) then -- Pet is the Target. -- Can always add players SID to test this.
+                if (ActMessage ~= nil and ActMessage > 1) then -- 1 is normal attack, we don't need to scan through that. -- Applying debuffs. 141 looks ok if /lb is line break.
+                   for _, value in pairs(T{82, 127, 141, 203, 205, 230, 236, 237, 242, 243, 270, 267, 268, 271, 277, 278, 279, 280, 320, 375, 421, 441, 602, 645}) do 
+                        if (value == ActMessage) then   -- we will need another for loop so we only make PetDebuffs the debillitating ones we care about.
+                            for _, value in pairs(T{2, 3, 6, 7, 10, 11, 16, 19, 21, 22, 28, 37, 193, 566    }) do -- Same debuffs as Pet Window.
+                                if(value == ActParam) then
+                                       PetDebuffs = ActParam; -- local into global.
+                                    break; -- This breaks the for loop for value == ActParam if we find one.
+                                end
+                            end
+
+                            break; -- This breaks the for loop of value == ActMessage if we find one.
+                        end
+                    end
+
+                    for _, value in pairs(T{64, 83, 204, 206, 350, 531}) do -- Removing debuffs -- This stays in 0x29.
+                        if (value == ActMessage) then  -- Need another for value pairs table check to see if it's a debuff we would even track.
+                            if (p1 == 37) then
+                                SteadyW = false;
+                            end
+                            PetDebuffs = 0;
+                            break;
+                        end
+                    end
+                end
+            end
+        end
+        --------
         return;
     end
-    
-        -- Packet: Pet Sync
+  ------   
+
+  -- Pet's Target Stuff
     if (e.id == 0x0068) then
         local player = GetPlayerEntity();
         if (player == nil) then
-            PetTargetsID = nil;
+            PetTargetsID = 0; -- Global
             return;
         end
-    
-        local owner = struct.unpack('I', e.data_modified, 0x08 + 0x01);
+
+        local owner = struct.unpack('I', e.data, 0x08 + 0x01);
         if (owner == player.ServerId) then
-            PetTargetsID = struct.unpack('I', e.data_modified, 0x14 + 0x01);
+            PetTargetsID = struct.unpack('I', e.data, 0x14 + 0x01);
         end
 
         return;
     end
+  ------
+  -- Target's Target Stuff. Not sure if a lot of these conditions can ever be true. It's just there were a lot of weird problems that needed fixing and now it is too
+    if (e.id == 0x0058 --[[Assist Response?]]) then -- hard to tell what is actually needed and what isn't, so I guess they all stay. Haha. Try and clean it later. Maybe.
+        if(ascii.settings.options.moninfo == true and ascii.settings.options.aggro == true) then
+            local ServerID = struct.unpack('I', e.data, 0x08 + 0x01);
+            local AssistTar = GetEntityByServerId(ServerID); -- This is our new target if the packet gets passed. Stop trying to find ways to not use ServerID. Won't work.
+            Assisting = 0; -- Assisting is only meant to block new trackings.
+            if (AssistTar == nil) then -- I guess our target or someone else is dead. Can't have it trying to target then.
+                e.blocked = true;
+                return;
+            end
+
+            if (AssistTar.SpawnFlags ~= 16) then  
+                TargetsTarget = AssistTar.TargetIndex; -- This is blocking trying to target anything that is not a monster.
+                e.blocked = true; -- Therefore, do we just pass everything else? That would be any new targets that are living monsters.
+                return; 
+            end 
+        end -- End options check.
+    end -- End 0x58 check.
+end); 
+
+ashita.events.register('packet_out', 'packet_out_cb', function (e)
+    if (e.id == 0x1A) then
+       local ActType = struct.unpack('H', e.data_modified, 0x0A + 0x01); 
+        if (ActType == 0x0F --[[Switch Target]]) then 
+            local ChangeTar = struct.unpack('H', e.data_modified, 0x08 + 0x01); 
+            if (ChangeTar == MainIndex) then 
+                e.blocked = true; 
+                return;
+            end
+
+            if (Assisting > 0 and GotMob > 0) then 
+                Assisting = 0;
+                e.blocked = true;
+                return;
+            end
+        end
+    end
+
+    return;
 end);
+
+ashita.events.register('text_in', 'chatblock_HandleText', function (e) -- Thanks, Thorny
+    for _,match in ipairs(matchStrings) do
+        if (string.match(e.message, match)) then
+            e.blocked = true;
+        end
+    end
+end);
+---------------------------------------------------------------------       FIN
