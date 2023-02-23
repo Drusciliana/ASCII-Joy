@@ -26,8 +26,8 @@
 * OVERVIEW *
     Relive the glory days before there were graphics, when MUDs were still cool, all while having a somewhat functional UI!
 	(Best used at 1920x1080 resolution, but maybe something else may work for you.) 
-        -- MOVING THINGS ACTS FUNNY IN WINDOWED MODE, PLEASE USE FULLSCREEN OR BORDERLESS WINDOW --
-        -- You often have to click somewhere outside of the intended line to move things. --
+        -- MOVING THINGS ACTS FUNNY IN WINDOWED MODE, PLEASE USE FULLSCREEN OR BORDERLESS WINDOW.
+        -- You often have to click somewhere outside of the intended line to move things. 
 
 * FEATURES *
     Party Window will monitor your party member's HP, MP, TP with HP changing colors depending on how injured they are.
