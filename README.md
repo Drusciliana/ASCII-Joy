@@ -20,7 +20,7 @@
 
 - POSSIBLE COMPATIBILITY ISSUES WITH THE ADDON "SimpleLog", since "SimpleLog" blocks some packets, certain things may not work. 
     The only fix for this that I've found is that in the default.txt in the scripts directors, make sure you look ASCII-Joy 
-    BEFORE you load "Simple:og". --- This issue only affects Pet functionality it would seem. Maybe tracking mob actions. ---
+    BEFORE you load "Simple:og". This issue only affects Pet functionality it would seem. Maybe tracking mob actions. 
     This issue doesn't happen for everyone. More Oddness.
 
 * OVERVIEW *
