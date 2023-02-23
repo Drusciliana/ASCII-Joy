@@ -1,9 +1,9 @@
-************************ ASCII-Joy v1.5.0  rel. Feb. 23, 2023
-****** Credit and Thanks goes out to: 
-****** Atom0s for his guidance and use of his various addons as examples and inspiration...
-****** Solentus and Dash for their ideas and explanations of the game.
-****** Almavivaconte, and Thorny for answering any questions that I had.
-****** Vicrelant for the use of the monster data tables from his addon.
+************************ ASCII-Joy v1.5.0  rel. Feb. 23, 2023          
+****** Credit and Thanks goes out to:           
+****** Atom0s for his guidance and use of his various addons as examples and inspiration...           
+****** Solentus and Dash for their ideas and explanations of the game.            
+****** Almavivaconte, and Thorny for answering any questions that I had.           
+****** Vicrelant for the use of the monster data tables from his addon.            
 
 * 1.5.0 Comparisons to 1.4.0:
 - Added ability to track who the mob has aggro on in the Monster Window (small delay on it) (need "mon-info" and "aggro" toggled).
