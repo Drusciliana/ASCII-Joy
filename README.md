@@ -6,13 +6,13 @@
 ****** Vicrelant for the use of the monster data tables from his addon.            
 
 * 1.5.0 Comparisons to 1.4.0:
-- Added ability to track who the mob has aggro on in the Monster Window (small delay on it) (need "mon-info" and "aggro" toggled).
-- Added ability to watch if the targgeting monster is casting or using a skiil (need "mon-info" toggled).
-- Added ability to track a mob your party has claimed in the Party Window (for healer types, mostly works) (need "claim" toggled).
-- Added ability to monitor "some" debillitating status effects on pets. Maybe. (W.I.P.)
-- More efficient Sub-Target checking/selection in Party Window. (Thanks, Thorny!)
-- Various Alliance Window issues were fixed.
-- Various general fixes and optimizations.
+     - Added ability to track who the mob has aggro on in the Monster Window (small delay on it) (need "mon-info" and "aggro" toggled).
+     - Added ability to watch if the targgeting monster is casting or using a skiil (need "mon-info" toggled).
+     - Added ability to track a mob your party has claimed in the Party Window (for healer types, mostly works) (need "claim" toggled).
+     - Added ability to monitor "some" debillitating status effects on pets. Maybe. (W.I.P.)
+     - More efficient Sub-Target checking/selection in Party Window. (Thanks, Thorny!)
+     - Various Alliance Window issues were fixed.
+     - Various general fixes and optimizations.
 
 - Known Issues * - Party Members set to Anonymous show they are far away when dead.    - Level Sync and Raise Sickness wearing off taking a while to accurately show max hp again. Odd.
      - Sometimes the Alliance Windows stay after the Alliance has disbanded. Odd, again. If this poses an issue for you, disable 
