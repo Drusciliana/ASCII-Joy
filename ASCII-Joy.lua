@@ -2142,10 +2142,10 @@ ashita.events.register('d3d_present', 'present_cb', function ()
         if (target:GetIsSubTargetActive() == 0) then
             OutSev = '|cFF80FF00|'..OutSev; 
         else
-            OutSev = '|cff7f2be2|'..OutSev; 
+            OutSev = '|cffff1493|' ..--[['|cff7f2be2|'..]]OutSev; -- mAKE THIS MORE NOTICABLE.
         end
 
-        ascii.font_p.font_height  = monsterfontsize + 2;
+        ascii.font_p.font_height  = monsterfontsize + 6; -- was +2
         ascii.font_p.italic = true;
         ascii.font_p.background.visible = false;
         ascii.font_p.text = OutSev; -- Target/Sub-Target Name
@@ -2918,26 +2918,6 @@ ashita.events.register('command', 'command_cb', function (ee)
         return;
     end
 
-    if (#args == 2 and args[2]:any('shadows')) then 
-        local StatusID = 0;
-        local TempPlayer = AshitaCore:GetMemoryManager():GetPlayer();
-        local Buffs = TempPlayer:GetBuffs();
-
-        for x = 1, 32 do -- Make sure we have the buff before we send a packet
-            for _, value in pairs(T{66, 444, 445, 446}) do
-                if(value == Buffs[x]) then
-                    StatusID = Buffs[x];
-                    local HighIDBit = bit.rshift(StatusID, 8);
-                    local LowIDBit = bit.band(StatusID, 0xFF);
-                    AshitaCore:GetPacketManager():AddOutgoingPacket(0xF1, {0x00, 0x00, 0x00, 0x00, LowIDBit, HighIDBit, 0x00, 0x00});
-                    return;
-                end
-            end
-        end
-
-        return;
-    end
-
     if (#args == 2 and args[2]:any('zilda')) then
         if(ascii.settings.options.playwin == true) then
             ascii.settings.options.zilda = not ascii.settings.options.zilda;
@@ -3023,7 +3003,10 @@ ashita.events.register('packet_in', 'packet_in_cb', function (e) -- Checker and 
     if (e.id == 0x000A or e.id == 0x000B) then
         return;
     end
-
+DEBUG1 = e.id;
+    if (e.id == 0x000E) then
+        DEBUG2 = true;
+    end
   -- Packet: Message Basic
     if (e.id == 0x0029) then -- Checker stuff
         local p1    = struct.unpack('l', e.data, 0x0C + 0x01); -- Param 1 (Level, for checker)
@@ -3034,7 +3017,9 @@ ashita.events.register('packet_in', 'packet_in_cb', function (e) -- Checker and 
         if (m == 0x05) then -- 5 is Unable to See, 4 is Too far away.
             UnableToSee = true;
         end
-
+--DEBUG1 = m;
+--DEBUG2 = p1;
+--DEBUG3 = p2;
         ---- Try to catch Pet things.
         local entity = GetEntity(PacketTar); -- Make sure this index number makes something valid before continuing any further. Could use it for something later.
         local player = GetPlayerEntity(); -- Let's check for pet status?
@@ -3043,6 +3028,8 @@ ashita.events.register('packet_in', 'packet_in_cb', function (e) -- Checker and 
         elseif (PacketTar ~= nil and PacketTar > 0 and player.PetTargetIndex == PacketTar) then -- See if we can snag certain debuffs on the pets. Does this cover AOE? 
             if (m > 1) then -- 1 is normal attack, we don't need to scan through that. 
                 for _, value in pairs(T{82, 127, 141, 203, 205, 236, 242, 243, 270, 277, 278, 279, 280, 320, 375, 421, 441, 602, 645}) do -- Applying debuffs. 141 looks ok if /lb is line break.
+    --                DEBUG3 = m;
+   --                 DEBUG4 = p1;
                     if (value == m) then   
                         PetDebuffs = p1;
                         break;
@@ -3097,6 +3084,9 @@ ashita.events.register('packet_in', 'packet_in_cb', function (e) -- Checker and 
             return;
         end
         local Pet = GetEntity(TempPlayer.PetTargetIndex); -- has to be down here in case TempPlayer goes nil for zoning. Happened.
+--DEBUG1 = Action;
+--DEBUG2 = ActParam;
+--DEBUG3 = ActMessage;       
         -------- 
         if (ServerID ~= 0 and ServerID == TempPlayer.ServerId) then -- Handling things we do. ONLY THE PLAYER
             local player = AshitaCore:GetMemoryManager():GetPlayer(); -- This is a Player structure. Not the same as Entity structure. Leave this.
@@ -3148,6 +3138,8 @@ ashita.events.register('packet_in', 'packet_in_cb', function (e) -- Checker and 
                 if (ActMessage ~= nil and ActMessage > 1) then -- 1 is normal attack, we don't need to scan through that. -- Applying debuffs. 141 looks ok if /lb is line break.
                    for _, value in pairs(T{82, 127, 141, 203, 205, 230, 236, 237, 242, 243, 270, 267, 268, 271, 277, 278, 279, 280, 320, 375, 421, 441, 602, 645}) do 
                         if (value == ActMessage) then   -- we will need another for loop so we only make PetDebuffs the debillitating ones we care about.
+   --                         DEBUG1 = ActMessage;
+   --                         DEBUG2 = ActParam;
                             for _, value in pairs(T{2, 3, 6, 7, 10, 11, 16, 19, 21, 22, 28, 37, 193, 566    }) do -- Same debuffs as Pet Window.
                                 if(value == ActParam) then
                                        PetDebuffs = ActParam; -- local into global.
