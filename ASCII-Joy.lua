@@ -1771,7 +1771,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                                 MobAggro = mb_data[i].aggro;
                             end
 
-                            MobWeak = 'ID: '..string.format('0x%X',TarID)..'  Aggro: |cffff0000|'..MobAggro..' WEAK: '..mb_data[i].weak..'|r SID:'..GotMob;
+                            MobWeak = 'ID: '..string.format('0x%X',TarID)..'  Aggro: |cffff0000|'..MobAggro..' WEAK: '..mb_data[i].weak;
                             MobWeak = string.gsub(MobWeak,'WEAK:','|cffffffff|WEAK:');
                             MobWeak = string.gsub(MobWeak,'Piercing','|cffa0a0a0|PRC');
                             MobWeak = string.gsub(MobWeak,'Fire','|cffff0000|FIR');
