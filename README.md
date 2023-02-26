@@ -7,7 +7,7 @@
 
 * 1.5.0 Comparisons to 1.4.0:
      - Added ability to track who the mob has aggro on in the Monster Window (small delay on it) (need "mon-info" and "aggro" toggled).
-     - Added ability to watch if the targgeting monster is casting or using a skiil (need "mon-info" toggled).
+     - Added ability to watch if the targetting monster is casting or using a skiil (need "mon-info" toggled).
      - Added ability to track a mob your party has claimed in the Party Window (for healer types, mostly works) (need "claim" toggled).
      - Added ability to monitor "some" debillitating status effects on pets. Maybe. (W.I.P.)
      - More efficient Sub-Target checking/selection in Party Window. (Thanks, Thorny!)
@@ -20,7 +20,7 @@
 
 - POSSIBLE COMPATIBILITY ISSUES WITH THE ADDON "SimpleLog", since "SimpleLog" blocks some packets, certain things may not work. 
     The only fix for this that I've found is that in the default.txt in the scripts folder, make sure you load ASCII-Joy 
-    BEFORE you load "Simple:og". This issue only affects Pet functionality it would seem. Maybe tracking mob actions. 
+    BEFORE you load "Simplelog". This issue only affects Pet functionality it would seem. Maybe tracking mob actions. 
     This issue doesn't happen for everyone. More Oddness.
 
 * OVERVIEW *
