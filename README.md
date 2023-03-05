@@ -11,7 +11,7 @@
 - Changed color for Monster health that isn't claimed.
 - Still working on catching Pet debuffs (getting a little better).
 - Little more optimization, maybe get a frame or two back.
-- 
+
 * 1.5.0 Comparisons to 1.4.0:
      - Added ability to track who the mob has aggro on in the Monster Window (small delay on it) (need "mon-info" and "aggro" toggled).
      - Added ability to watch if the targetting monster is casting or using a skiil (need "mon-info" toggled).
